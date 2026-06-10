@@ -1,0 +1,45 @@
+# ═══════════════════════════════════════════════════════════
+# 4G Traffic Prediction — Complete Dependencies
+# ═══════════════════════════════════════════════════════════
+# Install: pip install -r requirements.txt
+# GPU (CUDA 12.8+): pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+
+# ── Core ──────────────────────────────────────────────────
+numpy>=1.25,<1.27        # <1.27 for numba/statsforecast compat
+pandas>=2.0
+scikit-learn>=1.5
+scipy>=1.10
+sympy>=1.13              # torch dependency
+
+# ── Deep Learning ─────────────────────────────────────────
+torch>=2.2
+torchvision
+torchaudio
+einops>=0.7              # tensor operations
+
+# ── Statistical / Traditional Models ──────────────────────
+statsmodels>=0.14
+statsforecast>=2.0
+xgboost>=2.0
+
+# ── LLM / Pretrained Time Series Models ───────────────────
+transformers>=4.40
+huggingface_hub>=0.36    # model download from HuggingFace
+chronos-forecasting>=2.2 # Amazon Chronos
+granite-tsfm>=0.3        # IBM TinyTimeMixer (TTM)
+
+# ── Framework / Training ──────────────────────────────────
+pytorch-lightning>=2.0   # training framework (used by many models)
+
+# ── Plotting & Reporting ──────────────────────────────────
+matplotlib>=3.5
+openpyxl>=3.0
+
+# ── Utilities ─────────────────────────────────────────────
+tqdm>=4.60
+
+# ── Optional: Extra Models (not in Excel, but model files exist) ──
+# local-attention          # used by some attention modules
+# reformer-pytorch         # for Reformer model
+# PyWavelets               # wavelet transforms
+# patool                   # archive handling

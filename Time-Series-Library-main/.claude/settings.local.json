@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(find 'c:\\\\Users\\\\Admin\\\\Desktop\\\\网络流量预测项目新修改2' -type d -name \"*Xgboost*\" -o -name \"*TimeLLM*\" -o -name \"*iTransformer*\" -o -name \"*AutoAR*\" 2>/dev/null)",
+      "Read(//c/Users/Admin/Desktop/网络流量预测项目新修改2/**)",
+      "Bash(python plot_eight_models.py)",
+      "Read(//c/Users/Admin/Desktop/网络流量预测项目新修改/Time-Series-Library-main/results/**)",
+      "Read(//c/Users/Admin/Desktop/网络流量预测项目新修改/Time-Series-Library-main/**)",
+      "Bash(/e/Software/Anaconda3/envs/ETP-exp/python run_transformer.py)",
+      "Bash(tasklist)",
+      "Bash(PYTHONIOENCODING=utf-8 /e/Software/Anaconda3/envs/ETP-exp/python run_transformer.py)",
+      "Bash(PYTHONIOENCODING=utf-8 /e/Software/Anaconda3/envs/ETP-exp/python run.py --task_name long_term_forecast --is_training 1 --model Transformer --model_id 4G --data custom --root_path ./data_provider/4g_traffic/ --data_path df_4g_base_100.parquet --features M --target 总流量 --freq h --seq_len 24 --label_len 12 --pred_len 24 --enc_in 8 --dec_in 8 --c_out 8 --d_model 256 --n_heads 8 --e_layers 2 --d_layers 1 --d_ff 512 --train_epochs 5 --batch_size 64 --patience 3 --learning_rate 0.0001 --des Transformer_v2_Verify --checkpoints ./checkpoints/ --num_workers 0 --no_use_gpu)",
+      "Bash(cat 'c:\\\\Users\\\\Admin\\\\.claude\\\\settings.json' 2>/dev/null && echo \"---\" && cat 'c:\\\\Users\\\\Admin\\\\Desktop\\\\网络流量预测项目新修改2\\\\Time-Series-Library-main\\\\.claude\\\\settings.json' 2>/dev/null || echo \"No project settings file\")",
+      "Read(//c/Users/Admin/.claude/**)",
+      "Bash(cd 'c:\\\\Users\\\\Admin\\\\Desktop\\\\网络流量预测项目新修改2\\\\Time-Series-Library-main' && mkdir -p checkpoints_backup_from_other && cp 'c:/Users/Admin/Desktop/网络流量预测项目新修改/Time-Series-Library-main/checkpoints/SegRNN_4G_SegRNN_v1_Verify/checkpoint.pth' checkpoints/SegRNN_test/ && ls -la checkpoints/SegRNN_test/)",
+      "Bash(cd 'c:\\\\Users\\\\Admin\\\\Desktop\\\\网络流量预测项目新修改2\\\\Time-Series-Library-main' && mkdir -p checkpoints/SegRNN_4G_SegRNN_v1_Verify && cp 'c:/Users/Admin/Desktop/网络流量预测项目新修改/Time-Series-Library-main/checkpoints/SegRNN_4G_SegRNN_v1_Verify/checkpoint.pth' checkpoints/SegRNN_4G_SegRNN_v1_Verify/ && echo \"Copied\" && mkdir -p checkpoints/iTransformer_4G_iTransformer_v1_Verify && cp 'c:/Users/Admin/Desktop/网络流量预测项目新修改/Time-Series-Library-main/checkpoints/iTransformer_4G_iTransformer_v1_Verify/checkpoint.pth' checkpoints/iTransformer_4G_iTransformer_v1_Verify/ && echo \"Copied iTransformer\")",
+      "Bash(PYTHONIOENCODING=utf-8 /e/Software/Anaconda3/envs/ETP-exp/python -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 /e/Software/Anaconda3/envs/ETP-exp/python run.py --task_name long_term_forecast --is_training 0 --model SegRNN --model_id 4G --data custom --root_path ./data_provider/4g_traffic/ --data_path df_4g_base_100.parquet --features M --target 总流量 --freq h --seq_len 24 --label_len 12 --pred_len 24 --enc_in 8 --dec_in 8 --c_out 8 --d_model 256 --seg_len 24 --train_epochs 10 --batch_size 32 --patience 3 --learning_rate 0.0001 --des SegRNN_v1_Verify --checkpoints ./checkpoints/ --num_workers 0 --no_use_gpu)",
+      "Bash(PYTHONIOENCODING=utf-8 /e/Software/Anaconda3/envs/ETP-exp/python run.py --task_name long_term_forecast --is_training 0 --model iTransformer --model_id 4G --data custom --root_path ./data_provider/4g_traffic/ --data_path df_4g_base_100.parquet --features M --target 总流量 --freq h --seq_len 24 --label_len 12 --pred_len 24 --enc_in 8 --dec_in 8 --c_out 8 --d_model 512 --n_heads 8 --e_layers 2 --d_layers 1 --d_ff 2048 --train_epochs 10 --batch_size 32 --patience 3 --learning_rate 0.0001 --des iTransformer_v1_Verify --checkpoints ./checkpoints/ --num_workers 0 --no_use_gpu --channel_independence 1)",
+      "Bash(PYTHONIOENCODING=utf-8 /e/Software/Anaconda3/envs/ETP-exp/python run.py --task_name long_term_forecast --is_training 0 --model iTransformer --model_id 4G --data custom --root_path ./data_provider/4g_traffic/ --data_path df_4g_base_100.parquet --features M --target 总流量 --freq h --seq_len 24 --label_len 12 --pred_len 24 --enc_in 8 --dec_in 8 --c_out 8 --d_model 512 --n_heads 8 --e_layers 2 --d_layers 1 --d_ff 2048 --batch_size 32 --learning_rate 0.0001 --des iTransformer_v1_Verify --checkpoints ./checkpoints/ --num_workers 0 --no_use_gpu --channel_independence 1)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Admin\\Desktop\\网络流量预测项目新修改\\Time-Series-Library-main\\checkpoints\\SegRNN_4G_SegRNN_v1_Verify",
+      "c:\\Users\\Admin\\Desktop\\网络流量预测项目新修改\\Time-Series-Library-main\\checkpoints\\iTransformer_4G_iTransformer_v1_Verify"
+    ]
+  }
+}

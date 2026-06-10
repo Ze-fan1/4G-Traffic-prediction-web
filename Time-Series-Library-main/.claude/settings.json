@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      {
+        "tool": "Read",
+        "note": "Allow reading all files in workspace"
+      },
+      {
+        "tool": "Glob",
+        "note": "Allow file search in workspace"
+      },
+      {
+        "tool": "Grep",
+        "note": "Allow content search in workspace"
+      },
+      {
+        "tool": "Edit",
+        "note": "Allow file editing in workspace"
+      },
+      {
+        "tool": "Write",
+        "note": "Allow file creation in workspace"
+      },
+      {
+        "tool": "Bash",
+        "prompt": "run.*python.*script|run.*training|install.*dependencies|pip install|create directory|list files|check.*progress|wait.*check|verify|count files|find.*npy|list.*results|check.*status",
+        "note": "Allow common development bash commands"
+      },
+      {
+        "tool": "Bash",
+        "prompt": "Read|List|Check|Verify|Show|find|ls|cat|wc|head|tail|grep|echo",
+        "note": "Allow read-only bash operations"
+      },
+      {
+        "tool": "Agent",
+        "note": "Allow agent usage for exploration and code tasks"
+      },
+      {
+        "tool": "TodoWrite",
+        "note": "Allow todo list management"
+      }
+    ]
+  }
+}
