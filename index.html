@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>4G Traffic Prediction — Model Benchmark</title>
+<title>4G Traffic Prediction Benchmark</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@350;400;450;500;550;600;650;700;800&family=JetBrains+Mono:wght@400;500;550&display=swap" rel="stylesheet">
@@ -149,10 +149,10 @@ tailwind.config = {
 <header class="sticky top-0 z-30 glass-nav">
   <div class="max-w-7xl mx-auto px-4 sm:px-5 h-14 flex items-center justify-between">
     <div class="flex items-center gap-2.5">
-      <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#6152F2,#8B5CF6)">
-        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#6152F2,#0E7490)">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       </div>
-      <span class="font-semibold text-[15px] tracking-tight">4G Traffic <span style="color:var(--accent)">Benchmark</span></span>
+      <span class="font-semibold text-[15px] tracking-tight">4G Traffic Prediction <span style="color:var(--accent)">Benchmark</span></span>
     </div>
     <nav class="flex items-center gap-0.5 bg-[#F5F5F5] rounded-xl p-0.5 flex-wrap justify-center" id="tab-nav">
       <button class="tab-btn active" data-page="overview">概览</button>
@@ -179,35 +179,32 @@ tailwind.config = {
       <div class="absolute top-0 left-0 right-0 h-0.5" style="background:var(--accent)"></div>
       <p class="text-[0.65rem] text-text-muted uppercase tracking-wider font-medium mb-1.5">Best Model</p>
       <p class="text-xl font-semibold tracking-tight">BaseModel</p>
-      <p class="text-[0.65rem] text-text-muted mt-0.5">External · Ours</p>
+      
     </div>
     <div class="card p-5 relative overflow-hidden">
       <div class="absolute top-0 left-0 right-0 h-0.5" style="background:var(--accent)"></div>
       <p class="text-[0.65rem] text-text-muted uppercase tracking-wider font-medium mb-1.5">Custom ACC</p>
       <p class="text-2xl font-bold tracking-tight" style="color:var(--accent)">0.5901</p>
-      <p class="text-[0.65rem] text-emerald-600 mt-0.5 font-medium">↑ 11.9% above 2nd best</p>
+      
     </div>
     <div class="card p-5">
       <p class="text-[0.65rem] text-text-muted uppercase tracking-wider font-medium mb-1.5">Lowest MSE</p>
       <p class="text-2xl font-bold tracking-tight">1.0628</p>
-      <p class="text-[0.65rem] text-text-muted mt-0.5">BaseModel dominates</p>
+      
     </div>
     <div class="card p-5">
-      <p class="text-[0.65rem] text-text-muted uppercase tracking-wider font-medium mb-1.5">Dataset</p>
-      <p class="text-2xl font-bold tracking-tight">4G</p>
-      <p class="text-[0.65rem] text-text-muted mt-0.5">8 channels · 24h · 3h step</p>
+      <p class="text-[0.65rem] text-text-muted uppercase tracking-wider font-medium mb-1.5">Experiment Setup</p>
+      <p class="text-2xl font-bold tracking-tight">8 channels</p>
+      <p class="text-[0.65rem] text-text-muted mt-0.5">24h forecast · 3h rolling</p>
     </div>
   </div>
 
-  <!-- ACC Ranking + Legend (side by side on desktop) -->
-  <div class="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-5">
-    <div class="card p-5 lg:col-span-3">
-      <h3 class="text-sm font-semibold tracking-tight mb-3">Custom ACC 排名 · 全部模型</h3>
-      <div class="space-y-1.5" id="acc-ranking-bars"></div>
-    </div>
-    <div class="card p-5">
-      <h3 class="text-xs font-semibold tracking-tight mb-3 uppercase text-text-muted">图例</h3>
-      <div class="space-y-2" id="acc-legend"></div>
+  <!-- ACC Ranking (full width) -->
+  <div class="card p-5 mb-5">
+    <h3 class="text-sm font-semibold tracking-tight mb-3">Custom ACC 排名 · 全部模型</h3>
+    <div class="space-y-1.5" id="acc-ranking-bars"></div>
+    <div class="mt-4 pt-3 border-t border-border">
+      <div id="acc-legend"></div>
     </div>
   </div>
 
@@ -216,7 +213,7 @@ tailwind.config = {
     <h3 class="text-sm font-semibold tracking-tight mb-2">核心结论</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-text-secondary leading-relaxed">
       <div class="flex gap-2"><span class="text-emerald-600 font-bold flex-shrink-0">1.</span> BaseModel 在全部 6 项指标上排名第一，验证了自研架构在 4G 流量预测任务上的有效性。</div>
-      <div class="flex gap-2"><span class="text-emerald-600 font-bold flex-shrink-0">2.</span> Transformer 类模型中 PatchTST 表现最佳 (ACC=0.5239)，但仍与 BaseModel 存在约 12% 差距。</div>
+      <div class="flex gap-2"><span class="text-emerald-600 font-bold flex-shrink-0">2.</span> Transformer 类模型中 iTransformer 表现最佳 (ACC=0.5267)，但仍与 BaseModel 存在约 12% 差距。</div>
       <div class="flex gap-2"><span class="text-amber-600 font-bold flex-shrink-0">3.</span> 传统统计方法 MAPE 普遍偏高，建议以 ACC 和 MSE 作为主要评判标准。</div>
       <div class="flex gap-2"><span class="text-amber-600 font-bold flex-shrink-0">4.</span> LLM Zero-shot 方法 (Chronos, TimeLLM) 在流量预测上表现有限，ACC 均低于 0.45。</div>
     </div>
@@ -330,13 +327,13 @@ tailwind.config = {
     <div class="card p-5">
       <h3 class="text-sm font-semibold tracking-tight mb-3">数据集说明</h3>
       <div class="space-y-2.5 text-xs text-text-secondary leading-relaxed">
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">数据来源</span><span class="font-medium">4G 基站实测流量数据</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">特征通道</span><span>8 个特征维度（总流量、上下行 PRB 利用率、RRC 连接数、活跃用户数、上下行吞吐量等）</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">时间粒度</span><span>小时级数据，共数千小时连续记录</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">预测目标</span><span>未来 24 小时逐小时流量预测</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">滚动策略</span><span>每 3 小时滑动窗口重新预测</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">评估指标</span><span>MSE · MAE · RMSE · MAPE · MSPE · Custom ACC</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">模型总数</span><span>26 个，涵盖统计 / ML / DL / SSM / LLM 五大范式</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">数据来源</span><span class="font-medium">4G 基站实测流量数据</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">特征通道</span><span>8 维：总流量、上下行PRB利用率、RRC连接数、活跃用户数、上下行吞吐量、平均时延</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">时间粒度</span><span>小时级数据，数千小时连续记录</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">预测目标</span><span>未来 24 小时逐小时流量预测</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">滚动策略</span><span>每 3 小时滑动窗口重新预测</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">评估指标</span><span>MSE · MAE · RMSE · MAPE · MSPE · Custom ACC</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">模型总数</span><span>26 个，涵盖统计 / ML / DL / SSM / LLM 五大范式</span></div>
       </div>
       <div class="mt-4 pt-3 border-t border-border">
         <a href="https://github.com/YOUR_USERNAME/Time-Series-Library" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline transition-all">
@@ -351,14 +348,15 @@ tailwind.config = {
     <div class="card p-5">
       <h3 class="text-sm font-semibold tracking-tight mb-3">实验设置</h3>
       <div class="space-y-2.5 text-xs text-text-secondary leading-relaxed">
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">预测目标</span><span>未来 24 小时 4G 流量（8 个特征通道）</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">滚动策略</span><span>每 3 小时滚动预测，步长 3h</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">评估指标</span><span>MSE / MAE / RMSE / MAPE / MSPE / Custom ACC</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">数据划分</span><span>时间序列交叉验证，避免未来信息泄露</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">模型总数</span><span>26 个，涵盖统计 / ML / DL / LLM 四大范式</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">BaseModel</span><span>External-Base，自研模型，基于多尺度特征融合架构</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">运行环境</span><span>Python 3.10 · PyTorch 2.x · CUDA 12</span></div>
-        <div class="flex gap-2"><span class="text-text-muted w-20 flex-shrink-0">代码仓库</span><span class="font-mono text-[0.7rem]">Time-Series-Library</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">预测任务</span><span>未来 24 小时 4G 流量预测（8 通道多变量输入）</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">8 通道说明</span><span>无线接入网（RAN）遥测采集多维度 KPI——PRB 利用率、RRC 连接、吞吐量、时延联合刻画小区负载，单一流量指标无法反映网络全貌</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">滚动策略</span><span>每 3 小时滑动窗口重新预测，步长 = 3h</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">评估指标</span><span>MSE / MAE / RMSE / MAPE / MSPE / Custom ACC</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">数据划分</span><span>时间序列交叉验证，避免未来信息泄露</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">模型总数</span><span>26 个，覆盖统计 / ML / DL / SSM / LLM 五大范式</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">BaseModel</span><span>自研多尺度特征融合架构（External-Base），综合表现最优</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">运行环境</span><span>Python 3.10 · PyTorch 2.x · CUDA 12</span></div>
+        <div class="flex gap-2"><span class="text-text-muted w-24 flex-shrink-0">Codebase</span><span class="font-mono text-[0.7rem]">Time-Series-Library</span></div>
       </div>
     </div>
 
@@ -430,14 +428,14 @@ const MODELS = [
 const CATS = [...new Set(MODELS.map(m=>m.cat))];
 const CAT_PALETTE = {
   'Baseline':    {bg:'#EEECFE',border:'#6152F2',text:'#4F46E5',fill:'rgba(97,82,242,0.72)',fillLight:'rgba(97,82,242,0.12)',label:'基准模型'},
-  'Statistical': {bg:'#F4F4F5',border:'#A1A1AA',text:'#71717A',fill:'rgba(161,161,170,0.55)',fillLight:'rgba(161,161,170,0.08)',label:'传统统计'},
-  'Tree':        {bg:'#FEF3C7',border:'#F59E0B',text:'#D97706',fill:'rgba(245,158,11,0.6)',fillLight:'rgba(245,158,11,0.1)',label:'树模型'},
-  'Transformer': {bg:'#D1FAE5',border:'#10B981',text:'#059669',fill:'rgba(16,185,129,0.55)',fillLight:'rgba(16,185,129,0.08)',label:'Transformer'},
-  'MLP':         {bg:'#DBEAFE',border:'#3B82F6',text:'#2563EB',fill:'rgba(59,130,246,0.55)',fillLight:'rgba(59,130,246,0.08)',label:'MLP'},
-  'CNN':         {bg:'#EDE9FE',border:'#8B5CF6',text:'#7C3AED',fill:'rgba(139,92,246,0.55)',fillLight:'rgba(139,92,246,0.08)',label:'CNN'},
-  'RNN':         {bg:'#FFEDD5',border:'#F97316',text:'#EA580C',fill:'rgba(249,115,22,0.55)',fillLight:'rgba(249,115,22,0.08)',label:'RNN'},
-  'SSM':         {bg:'#CFFAFE',border:'#06B6D4',text:'#0891B2',fill:'rgba(6,182,212,0.55)',fillLight:'rgba(6,182,212,0.08)',label:'SSM'},
-  'LLM':         {bg:'#FCE7F3',border:'#EC4899',text:'#DB2777',fill:'rgba(236,72,153,0.55)',fillLight:'rgba(236,72,153,0.08)',label:'LLM'},
+  'Statistical': {bg:'#F5F5F4',border:'#78716C',text:'#57534E',fill:'rgba(120,113,108,0.55)',fillLight:'rgba(120,113,108,0.08)',label:'传统统计'},
+  'Tree':        {bg:'#DCFCE7',border:'#16A34A',text:'#15803D',fill:'rgba(22,163,74,0.55)',fillLight:'rgba(22,163,74,0.1)',label:'树模型'},
+  'Transformer': {bg:'#FEF3C7',border:'#D97706',text:'#B45309',fill:'rgba(217,119,6,0.6)',fillLight:'rgba(217,119,6,0.1)',label:'Transformer'},
+  'MLP':         {bg:'#DBEAFE',border:'#2563EB',text:'#1D4ED8',fill:'rgba(37,99,235,0.55)',fillLight:'rgba(37,99,235,0.08)',label:'MLP'},
+  'CNN':         {bg:'#F3E8FF',border:'#7C3AED',text:'#6D28D9',fill:'rgba(124,58,237,0.55)',fillLight:'rgba(124,58,237,0.08)',label:'CNN'},
+  'RNN':         {bg:'#FEE2E2',border:'#DC2626',text:'#B91C1C',fill:'rgba(220,38,38,0.55)',fillLight:'rgba(220,38,38,0.1)',label:'RNN'},
+  'SSM':         {bg:'#CFFAFE',border:'#0891B2',text:'#0E7490',fill:'rgba(8,145,178,0.55)',fillLight:'rgba(8,145,178,0.08)',label:'SSM'},
+  'LLM':         {bg:'#FCE7F3',border:'#BE185D',text:'#9D174D',fill:'rgba(190,24,93,0.55)',fillLight:'rgba(190,24,93,0.08)',label:'LLM'},
 };
 function C(m) { return CAT_PALETTE[m.cat]||CAT_PALETTE['Statistical']; }
 
@@ -538,15 +536,33 @@ function initOverview() {
     </div>`;
   }).join('');
 
-  // Legend
-  document.getElementById('acc-legend').innerHTML = CATS.map(cat => {
-    const c = CAT_PALETTE[cat];
-    return `<div class="flex items-center gap-2 text-xs">
-      <span class="accent-dot" style="background:${c.border}"></span>
-      <span class="text-text-secondary">${c.label||cat}</span>
-      <span class="text-text-muted ml-auto font-mono" style="font-size:0.65rem">${MODELS.filter(m=>m.cat===cat).length} models</span>
-    </div>`;
-  }).join('');
+  // Legend (compact 2-column)
+  (() => {
+    const items = CATS.map(cat => {
+      const c = CAT_PALETTE[cat];
+      const n = MODELS.filter(m=>m.cat===cat).length;
+      return {dot: c.border, label: c.label||cat, count: n};
+    });
+    const half = Math.ceil(items.length / 2);
+    const left = items.slice(0, half);
+    const right = items.slice(half);
+    const rowCount = Math.max(left.length, right.length);
+    let h = '<table style="width:100%;border-collapse:collapse;table-layout:fixed"><tbody>';
+    for (let i = 0; i < rowCount; i++) {
+      h += '<tr>';
+      [left, right].forEach(col => {
+        const item = col[i];
+        if (item) {
+          h += `<td style="padding:3px 14px 3px 0;width:50%"><span class="accent-dot" style="background:${item.dot};width:8px;height:8px;display:inline-block;vertical-align:middle;margin-right:6px"></span><span style="font-size:0.72rem;color:#52525B">${item.label}</span><span style="font-size:0.65rem;color:#A1A1AA;margin-left:3px;font-family:&quot;JetBrains Mono&quot;,monospace">${item.count}</span></td>`;
+        } else {
+          h += '<td style="padding:3px 14px 3px 0;width:50%"></td>';
+        }
+      });
+      h += '</tr>';
+    }
+    h += '</tbody></table>';
+    document.getElementById('acc-legend').innerHTML = h;
+  })();
 }
 
 // ── Category chips ──
@@ -675,7 +691,7 @@ function updatePredCurves() {
   const truth = channelTruth(activeChannel, hours);
   const top8 = [...MODELS].sort((a,b)=>a.mse-b.mse).slice(0,8);
   top8.sort((a,b)=>a.mse-b.mse);
-  const colors = ['#6152F2','#10B981','#3B82F6','#F59E0B','#8B5CF6','#F97316','#06B6D4','#EC4899'];
+  const colors = ['#6152F2','#DC2626','#2563EB','#D97706','#7C3AED','#16A34A','#0891B2','#BE185D'];
 
   const datasets = [
     {label:'Ground Truth',data:truth,borderColor:'#18181B',backgroundColor:'transparent',borderWidth:2.8,borderDash:[],pointRadius:0,tension:0.35,order:0},
@@ -756,7 +772,7 @@ function initAllCharts() {
 
   // 2. Radar
   const top8 = [...MODELS].sort((a,b)=>b.acc-a.acc).slice(0,8);
-  const rColors = ['#6152F2','#10B981','#3B82F6','#F59E0B','#8B5CF6','#F97316','#06B6D4','#EC4899'];
+  const rColors = ['#6152F2','#DC2626','#2563EB','#D97706','#7C3AED','#16A34A','#0891B2','#BE185D'];
   new Chart(document.getElementById('c-radar'),{
     type:'radar',data:{labels:['Custom ACC↑','MSE⁻¹↑','MAE⁻¹↑','RMSE⁻¹↑','(100-MAPE%)↑'],datasets:top8.map((m,i)=>({label:m.model,data:[m.acc,1-m.mse/5,1-m.mae/1,1-m.rmse/2.5,Math.max(0,1-m.mape/300)],borderColor:rColors[i],backgroundColor:rColors[i]+'12',borderWidth:1.5,pointRadius:3,pointBackgroundColor:rColors[i]}))},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:14,font:{size:9},color:'#52525B'}},tooltip:{backgroundColor:'#FFF',titleColor:'#18181B',bodyColor:'#52525B',borderColor:'rgba(0,0,0,0.08)',borderWidth:1,cornerRadius:8}},scales:{r:{grid:{color:'rgba(0,0,0,0.04)'},angleLines:{color:'rgba(0,0,0,0.04)'},pointLabels:{color:'#52525B',font:{size:9}},ticks:{display:false},min:0,max:0.9}}}
@@ -788,7 +804,7 @@ function initAllCharts() {
 function initHourlyMAEChart(){
   const hours=Array.from({length:24},(_,i)=>i+1);
   const top6=[...MODELS].sort((a,b)=>a.mse-b.mse).slice(0,6); top6.sort((a,b)=>a.mse-b.mse);
-  const colors=['#6152F2','#10B981','#3B82F6','#F59E0B','#8B5CF6','#F97316'];
+  const colors=['#6152F2','#DC2626','#2563EB','#D97706','#7C3AED','#16A34A'];
   new Chart(document.getElementById('c-hourly-mae'),{
     type:'line',data:{labels:hours.map(h=>`${h}h`),datasets:top6.map((m,i)=>({label:m.model,data:hours.map(h=>m.mae*Math.pow(h/24,0.6)*(1+(Math.random()-0.5)*0.25)),borderColor:colors[i],backgroundColor:'transparent',borderWidth:m.model.includes('BaseModel')?2.5:1.5,borderDash:m.model.includes('BaseModel')?[]:[3,2],pointRadius:0,tension:0.3}))},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:12,font:{size:9},color:'#52525B'}},tooltip:{backgroundColor:'#FFF',titleColor:'#18181B',bodyColor:'#52525B',borderColor:'rgba(0,0,0,0.08)',borderWidth:1,cornerRadius:8}},scales:{x:{grid:{color:'rgba(0,0,0,0.03)'},ticks:{color:'#A1A1AA'}},y:{grid:{color:'rgba(0,0,0,0.03)'},ticks:{color:'#A1A1AA'},title:{display:true,text:'Cumulative MAE',color:'#A1A1AA'}}}}
@@ -797,7 +813,7 @@ function initHourlyMAEChart(){
 
 function initErrorDistChart(){
   const top6=[...MODELS].sort((a,b)=>a.mse-b.mse).slice(0,6); top6.sort((a,b)=>a.mse-b.mse);
-  const colors=['#6152F2','#10B981','#3B82F6','#F59E0B','#8B5CF6','#F97316'];
+  const colors=['#6152F2','#DC2626','#2563EB','#D97706','#7C3AED','#16A34A'];
   const bins=40,xMin=-2.5,xMax=2.5,step=(xMax-xMin)/bins;
   const gauss=(x,mean,std)=>Math.exp(-0.5*((x-mean)/std)**2)/(std*Math.sqrt(2*Math.PI));
   new Chart(document.getElementById('c-error-dist'),{
@@ -822,7 +838,7 @@ function initPerfBarsChart(){
 function initMultiWindowChart(){
   const windows=[3,6,9,12,18,24];
   const top6=[...MODELS].sort((a,b)=>a.mse-b.mse).slice(0,6); top6.sort((a,b)=>a.mse-b.mse);
-  const colors=['#6152F2','#10B981','#3B82F6','#F59E0B','#8B5CF6','#F97316'];
+  const colors=['#6152F2','#DC2626','#2563EB','#D97706','#7C3AED','#16A34A'];
   // Simulate: error grows with window size
   const truthVals=windows.map(w=>0.5+0.05*w/3);
   const datasets=[
