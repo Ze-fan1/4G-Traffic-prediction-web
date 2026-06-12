@@ -11,120 +11,172 @@ body {
   min-height: 100vh; position: relative; overflow-x: hidden;
 }
 
-/* 镭射光 Holographic Background */
+/* ═══ 镭射光背景（柔和版） ═══ */
 body::before {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse at 15% 30%, rgba(97,82,242,0.32) 0%, transparent 45%),
-    radial-gradient(ellipse at 75% 15%, rgba(190,24,93,0.22) 0%, transparent 45%),
-    radial-gradient(ellipse at 55% 70%, rgba(8,145,178,0.25) 0%, transparent 45%),
-    radial-gradient(ellipse at 85% 60%, rgba(217,119,6,0.20) 0%, transparent 40%),
-    radial-gradient(ellipse at 30% 85%, rgba(124,58,237,0.24) 0%, transparent 45%);
-  animation: hologramDrift 12s ease-in-out infinite alternate;
+    radial-gradient(ellipse at 15% 30%, rgba(97,82,242,0.14) 0%, transparent 50%),
+    radial-gradient(ellipse at 75% 15%, rgba(190,24,93,0.09) 0%, transparent 50%),
+    radial-gradient(ellipse at 55% 70%, rgba(8,145,178,0.11) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 60%, rgba(217,119,6,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 85%, rgba(124,58,237,0.10) 0%, transparent 50%);
+  animation: hologramDrift 15s ease-in-out infinite alternate;
 }
 @keyframes hologramDrift {
   0% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
-  33% { background-position: 12% 8%, -8% 10%, 9% -7%, -10% 7%, 5% -9%; }
-  66% { background-position: -4% 14%, 6% -2%, -2% 4%, 6% -8%, -10% 6%; }
-  100% { background-position: -8% 12%, 5% -8%, -5% 9%, 12% -5%, -8% 5%; }
+  33% { background-position: 8% 5%, -5% 7%, 6% -4%, -7% 4%, 3% -6%; }
+  66% { background-position: -3% 10%, 4% -3%, -2% 5%, 5% -6%, -7% 4%; }
+  100% { background-position: -5% 8%, 3% -5%, -3% 6%, 8% -3%, -5% 3%; }
 }
 
 #root { position: relative; z-index: 1; }
 
-/* Card with Edge Glow */
+/* ═══ 卡片边缘发光（柔和版） ═══ */
 .card {
   background: #FFF; border: 1px solid rgba(0,0,0,0.04); border-radius: 14px;
-  transition: all 0.35s cubic-bezier(0.16,1,0.3,1); position: relative;
+  transition: all 0.4s cubic-bezier(0.16,1,0.3,1); position: relative;
 }
 .card::after {
   content: ''; position: absolute; inset: -2px; border-radius: 16px; z-index: -1;
-  opacity: 0.45; transition: opacity 0.4s ease;
-  background: linear-gradient(135deg, rgba(97,82,242,0.25), rgba(8,145,178,0.18), rgba(124,58,237,0.20), rgba(190,24,93,0.14));
+  opacity: 0.22; transition: opacity 0.4s ease;
+  background: linear-gradient(135deg, rgba(97,82,242,0.13), rgba(8,145,178,0.09), rgba(124,58,237,0.10), rgba(190,24,93,0.07));
   filter: blur(8px);
 }
-.card:hover { border-color: rgba(0,0,0,0.08); box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 0 30px rgba(97,82,242,0.12); }
-.card:hover::after { opacity: 0.9; }
+.card:hover { border-color: rgba(0,0,0,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.04), 0 0 16px rgba(97,82,242,0.06); }
+.card:hover::after { opacity: 0.55; }
 
 .card-glow { position: relative; }
 .card-glow::before {
-  content: ''; position: absolute; inset: -3px; border-radius: 17px; z-index: -1;
-  opacity: 0.85; filter: blur(10px);
-  background: linear-gradient(135deg, rgba(97,82,242,0.30), rgba(8,145,178,0.20), rgba(217,119,6,0.14));
-  animation: glowPulse 3s ease-in-out infinite alternate;
+  content: ''; position: absolute; inset: -2px; border-radius: 16px; z-index: -1;
+  opacity: 0.45; filter: blur(8px);
+  background: linear-gradient(135deg, rgba(97,82,242,0.16), rgba(8,145,178,0.10), rgba(217,119,6,0.07));
+  animation: glowPulse 4s ease-in-out infinite alternate;
 }
-.card-glow:hover::before { opacity: 1; animation: none; }
+.card-glow:hover::before { opacity: 0.7; animation: none; }
 
 @keyframes glowPulse {
-  0% { opacity: 0.7; filter: blur(10px); }
-  100% { opacity: 0.95; filter: blur(14px); }
+  0% { opacity: 0.35; filter: blur(8px); }
+  100% { opacity: 0.55; filter: blur(12px); }
 }
 
-/* 形状模糊 — Shape Blur on Hover */
+/* ═══ 形状模糊（全局柔和版） ═══ */
 .shape-blur {
   transition: filter 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1);
 }
 .shape-blur:hover {
-  filter: blur(0.6px) brightness(1.03);
-  transform: scale(1.008);
+  filter: blur(0.5px) brightness(1.02);
+  transform: scale(1.006);
 }
 
-/* Table row shape blur */
+/* 表格行 */
 .dt tbody tr {
   transition: filter 0.35s ease, background 0.15s;
 }
 .dt tbody tr:hover {
-  filter: blur(0.4px) brightness(1.02);
+  filter: blur(0.35px) brightness(1.015);
 }
 
-/* Chip shape blur */
+/* 表格单元格 */
+.dt td {
+  transition: filter 0.3s ease;
+}
+.dt tbody tr:hover td {
+  filter: blur(0.2px);
+}
+
+/* Chip / 标签 */
 .chip {
-  transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+  transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
 }
 .chip:hover {
-  filter: blur(0.3px) brightness(1.05);
+  filter: blur(0.25px) brightness(1.03);
   transform: translateY(-1px);
 }
 
-/* Welcome blur text */
+/* 输入框 */
+input[type="text"] {
+  transition: filter 0.3s ease, border-color 0.2s;
+}
+input[type="text"]:focus {
+  filter: blur(0.2px) brightness(1.02);
+}
+
+/* select 下拉框 */
+select {
+  transition: filter 0.3s ease;
+}
+select:hover {
+  filter: blur(0.2px) brightness(1.02);
+}
+
+/* 排名列表行 */
+#acc-ranking-bars > div, #rank-list > div {
+  transition: filter 0.35s ease, background 0.15s;
+}
+#acc-ranking-bars > div:hover, #rank-list > div:hover {
+  filter: blur(0.3px) brightness(1.015);
+}
+
+/* ═══ 欢迎模糊文字（轻模糊版） ═══ */
 .welcome-blur {
   font-size: clamp(2rem, 5vw, 4rem);
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, rgba(97,82,242,0.12), rgba(8,145,178,0.10), rgba(124,58,237,0.08));
+  background: linear-gradient(135deg, rgba(97,82,242,0.22) 0%, rgba(8,145,178,0.18) 40%, rgba(124,58,237,0.15) 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
-  filter: blur(3px);
-  animation: welcomeUnblur 2s cubic-bezier(0.16,1,0.3,1) forwards;
+  -webkit-text-fill-color: transparent;
+  filter: blur(0.8px);
+  animation: welcomeUnblur 2.5s cubic-bezier(0.16,1,0.3,1) forwards;
   user-select: none;
   pointer-events: none;
 }
 @keyframes welcomeUnblur {
-  0% { filter: blur(8px); opacity: 0; transform: translateY(-20px) scale(0.95); }
-  60% { filter: blur(2px); opacity: 0.8; }
-  100% { filter: blur(3px); opacity: 1; transform: translateY(0) scale(1); }
+  0% { filter: blur(6px); opacity: 0; transform: translateY(-16px) scale(0.96); }
+  70% { filter: blur(0.3px); opacity: 0.9; }
+  100% { filter: blur(0.8px); opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Glass Nav — 粘稠导航 */
+/* ═══ 粘稠导航 ═══ */
 .glass-nav {
   position: relative;
-  background: rgba(255,255,255,0.7);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border-bottom: 1px solid rgba(97,82,242,0.10);
-  box-shadow: 0 2px 24px rgba(97,82,242,0.06), 0 1px 4px rgba(0,0,0,0.04);
-  transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(28px) saturate(220%);
+  -webkit-backdrop-filter: blur(28px) saturate(220%);
+  border-bottom: 1px solid rgba(97,82,242,0.08);
+  box-shadow: 0 2px 20px rgba(97,82,242,0.04), 0 1px 3px rgba(0,0,0,0.03);
+  transition: all 0.5s cubic-bezier(0.16,1,0.3,1);
 }
 .glass-nav::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 5%;
-  right: 5%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(97,82,242,0.3), rgba(8,145,178,0.2), transparent);
-  filter: blur(1px);
+  bottom: 0; left: 3%; right: 3%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(97,82,242,0.18), rgba(8,145,178,0.12), transparent);
+  filter: blur(2px);
+  animation: navShimmer 4s ease-in-out infinite alternate;
 }
+@keyframes navShimmer {
+  0% { opacity: 0.4; left: 3%; right: 3%; }
+  100% { opacity: 0.8; left: 15%; right: 15%; }
+}
+
+/* 标签按钮 — 粘稠过渡 */
+.tab-btn {
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tab-btn:hover::after { width: 40%; }
+.tab-btn.active::after { width: 60%; }
 
 /* Skeleton */
 .skeleton {
@@ -141,7 +193,7 @@ body::before {
 /* Tabs */
 .tab-btn {
   font-size: 0.8rem; font-weight: 500; color: #71717A; padding: 7px 16px;
-  border-radius: 10px; transition: all 0.2s ease; cursor: pointer;
+  border-radius: 10px; cursor: pointer;
   white-space: nowrap; letter-spacing: -0.01em; background: transparent; border: none;
 }
 .tab-btn:hover { color: #3F3F46; background: rgba(0,0,0,0.03); }
@@ -152,7 +204,7 @@ body::before {
   display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem;
   font-weight: 500; padding: 4px 13px; border-radius: 999px;
   border: 1px solid rgba(0,0,0,0.07); color: #52525B; cursor: pointer;
-  transition: all 0.2s ease; background: transparent;
+  background: transparent;
 }
 .chip:hover { border-color: rgba(0,0,0,0.14); color: #18181B; }
 .chip.active { background: #18181B; color: #FFF; border-color: #18181B; }
