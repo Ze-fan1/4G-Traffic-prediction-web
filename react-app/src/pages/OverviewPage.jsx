@@ -20,22 +20,30 @@ export default function OverviewPage() {
 
   return (
     <div className="page-enter">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5 mb-5">
-        <div className="card card-glow p-5 relative overflow-hidden">
+      {/* Welcome Banner */}
+      <div className="relative mt-5 mb-6 text-center overflow-hidden py-8">
+        <h1 className="welcome-blur" aria-hidden="true">4G Traffic Prediction</h1>
+        <p className="text-sm text-[#A1A1AA] mt-2 tracking-wide" style={{ animation: 'fadeIn 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) both' }}>
+          26 Models · 8 Channels · 24h Forecast
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div className="card card-glow shape-blur p-5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'var(--accent)' }} />
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Best Model</p>
           <p className="text-xl font-semibold tracking-tight">BaseModel</p>
         </div>
-        <div className="card card-glow p-5 relative overflow-hidden">
+        <div className="card card-glow shape-blur p-5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'var(--accent)' }} />
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Custom ACC</p>
           <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--accent)' }}>0.5901</p>
         </div>
-        <div className="card card-glow p-5">
+        <div className="card card-glow shape-blur p-5">
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Lowest MSE</p>
           <p className="text-2xl font-bold tracking-tight">1.0628</p>
         </div>
-        <div className="card card-glow p-5">
+        <div className="card card-glow shape-blur p-5">
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Experiment Setup</p>
           <p className="text-2xl font-bold tracking-tight">8 channels</p>
           <p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">24h forecast · 3h rolling</p>
