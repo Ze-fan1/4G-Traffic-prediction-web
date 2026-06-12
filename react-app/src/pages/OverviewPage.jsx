@@ -31,11 +31,11 @@ export default function OverviewPage() {
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Custom ACC</p>
           <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--accent)' }}>0.5901</p>
         </div>
-        <div className="card p-5">
+        <div className="card card-glow p-5">
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Lowest MSE</p>
           <p className="text-2xl font-bold tracking-tight">1.0628</p>
         </div>
-        <div className="card p-5">
+        <div className="card card-glow p-5">
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Experiment Setup</p>
           <p className="text-2xl font-bold tracking-tight">8 channels</p>
           <p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">24h forecast · 3h rolling</p>
