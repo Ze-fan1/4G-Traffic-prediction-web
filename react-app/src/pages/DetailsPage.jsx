@@ -13,7 +13,7 @@ export default function DetailsPage() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold tracking-tight mb-3">数据集说明</h3>
           <div className="space-y-2.5 text-xs text-[#52525B] leading-relaxed">
-            {[['数据来源', '4G 基站实测流量数据', true], ['特征通道', '8 维：总流量、上下行PRB利用率、RRC连接数、活跃用户数、上下行吞吐量、平均时延'], ['时间粒度', '小时级数据，数千小时连续记录'], ['预测目标', '未来 24 小时逐小时流量预测'], ['滚动策略', '每 3 小时滑动窗口重新预测'], ['评估指标', 'MSE · MAE · RMSE · MAPE · MSPE · Custom ACC'], ['模型总数', '26 个，涵盖统计 / ML / DL / SSM / LLM 五大范式']].map(([label, value, bold]) => (<div key={label} className="flex gap-2"><span className="text-[#A1A1AA] w-24 flex-shrink-0">{label}</span><span className={bold ? 'font-medium' : ''}>{value}</span></div>))}
+            {[['数据来源', '4G 基站实测流量数据', true], ['特征通道', '8 维：ERAB流量、PDCCH利用率、PDSCH利用率、PUSCH利用率、上行流量、下行流量、总流量、有效连接数'], ['时间粒度', '小时级数据，数千小时连续记录'], ['预测目标', '未来 24 小时逐小时流量预测'], ['滚动策略', '每 3 小时滑动窗口重新预测，共 5378 个窗口'], ['评估指标', 'MSE · MAE · RMSE · MAPE · MSPE · Custom ACC'], ['模型总数', '26 个，涵盖统计 / ML / DL / SSM / LLM 五大范式']].map(([label, value, bold]) => (<div key={label} className="flex gap-2"><span className="text-[#A1A1AA] w-24 flex-shrink-0">{label}</span><span className={bold ? 'font-medium' : ''}>{value}</span></div>))}
           </div>
           <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(0,0,0,0.04)' }}>
             <a href="https://github.com/Ze-fan1/4G-Traffic-prediction-web" target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6152F2] hover:underline transition-all">
@@ -24,7 +24,7 @@ export default function DetailsPage() {
         <div className="card p-5">
           <h3 className="text-sm font-semibold tracking-tight mb-3">实验设置</h3>
           <div className="space-y-2.5 text-xs text-[#52525B] leading-relaxed">
-            {[['预测任务', '未来 24 小时 4G 流量预测（8 通道多变量输入）'], ['8 通道说明', '无线接入网（RAN）遥测采集多维度 KPI——PRB 利用率、RRC 连接、吞吐量、时延联合刻画小区负载，单一流量指标无法反映网络全貌'], ['滚动策略', '每 3 小时滑动窗口重新预测，步长 = 3h'], ['评估指标', 'MSE / MAE / RMSE / MAPE / MSPE / Custom ACC'], ['数据划分', '时间序列交叉验证，避免未来信息泄露'], ['模型总数', '26 个，覆盖统计 / ML / DL / SSM / LLM 五大范式'], ['BaseModel', '自研多尺度特征融合架构（External-Base），综合表现最优'], ['运行环境', 'Python 3.10 · PyTorch 2.x · CUDA 12'], ['代码仓库', 'Time-Series-Library']].map(([label, value]) => (<div key={label} className="flex gap-2"><span className="text-[#A1A1AA] w-24 flex-shrink-0">{label}</span><span className={label === '代码仓库' ? 'font-mono text-[0.7rem]' : ''}>{value}</span></div>))}
+            {[['预测任务', '未来 24 小时 4G 流量预测（8 通道多变量输入）'], ['8 通道说明', 'RAN 侧多维度 KPI（ERAB流量 + 3项信道利用率 + 3项流量指标 + 连接数），比单变量流量预测更全面刻画小区负载状态'], ['滚动策略', '每 3 小时滑动窗口重新预测，步长 = 3h'], ['评估指标', 'MSE / MAE / RMSE / MAPE / MSPE / Custom ACC'], ['数据划分', '时间序列交叉验证，避免未来信息泄露'], ['模型总数', '26 个，覆盖统计 / ML / DL / SSM / LLM 五大范式'], ['BaseModel', '自研多尺度特征融合架构（External-Base），综合表现最优'], ['运行环境', 'Python 3.10 · PyTorch 2.x · CUDA 12'], ['代码仓库', 'Time-Series-Library']].map(([label, value]) => (<div key={label} className="flex gap-2"><span className="text-[#A1A1AA] w-24 flex-shrink-0">{label}</span><span className={label === '代码仓库' ? 'font-mono text-[0.7rem]' : ''}>{value}</span></div>))}
           </div>
         </div>
         <div className="card p-5">
@@ -38,7 +38,14 @@ export default function DetailsPage() {
         <div className="card p-5 lg:col-span-2">
           <h3 className="text-sm font-semibold tracking-tight mb-3">详细分析</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-[#52525B] leading-relaxed">
-            {[['1. BaseModel 全面领先', '在所有 6 项指标上排名第一 (MSE=1.0628, ACC=0.5901)，验证了自研多尺度特征融合架构在 4G 流量预测任务上的有效性。'], ['2. Transformer 分化严重', 'PatchTST/iTransformer (ACC~0.525) 显著优于传统 Transformer/Informer (ACC~0.42)，注意力机制设计至关重要。'], ['3. LLM Zero-shot 不适合', 'Chronos 全系列和 TimeLLM ACC 均低于 0.45，通用预训练知识无法直接迁移到网络流量预测，需要领域微调。'], ['4. 简单基线有价值', 'Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 作为轻量基线，仍优于多个复杂深度学习模型。'], ['5. MAPE 指标不可靠', '在 scaled 预测空间中大量模型 MAPE 爆炸 (最高 294.99%)，建议以 ACC 和 MSE 作为主要评判标准。'], ['6. 滚动窗口的双刃剑', '3h 滚动步长使同一时间点被多次预测，整体方差降低但分析单个时间点时需注意自相关偏差。']].map(([title, body]) => (<div key={title} className="bg-[#FAFAFA] rounded-xl p-3"><strong className="text-[#18181B]">{title}</strong><br />{body}</div>))}
+            {[
+              ['1. BaseModel 全面领先', '6 项指标全部第一 (MSE=1.0628, ACC=0.5901)，相比第二名 iTransformer ACC 提升 12.0%，验证了基线模型在 4G 流量预测上的有效性。'],
+              ['2. Transformer 分化显著', 'iTransformer (ACC=0.5267) 和 PatchTST (ACC=0.5239) 表现接近，但相比原生 Transformer (ACC=0.4140) 提升超过 27%，注意力机制设计是核心差异。'],
+              ['3. 轻量基线有竞争力', 'Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 的 ACC 超过 Autoformer、Informer 等复杂模型，表明强基线设定是公平评估的前提。'],
+              ['4. LLM Zero-shot 泛化不足', 'Chronos 全系和 TimeLLM ACC 均低于 0.45，通用预训练知识无法直接迁移至网络流量预测，需要领域微调或适配层。'],
+              ['5. MAPE 指标不稳定', '标准化空间中大量模型 MAPE 超过 100%（LinearRegression=294.99%），在 scaled 空间使用百分比误差需谨慎，建议以 ACC 和 MSE 为主。'],
+              ['6. 滚动窗口需注意', '3h 滑动步长使同一时间点被多次预测，整体方差降低但分析单点精度时需注意自相关偏差。窗口数 5378，覆盖多种时间模式。'],
+            ].map(([title, body]) => (<div key={title} className="bg-[#FAFAFA] rounded-xl p-3"><strong className="text-[#18181B]">{title}</strong><br />{body}</div>))}
           </div>
         </div>
       </div>
