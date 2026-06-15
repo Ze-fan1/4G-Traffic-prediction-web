@@ -117,20 +117,12 @@ select:hover {
   filter: blur(0.3px) brightness(1.015);
 }
 
-/* ═══ 图表悬浮形状模糊 ═══ */
-.chart-box canvas, .chart-box-lg canvas {
-  transition: filter 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1);
-}
-.chart-box:hover canvas, .chart-box-lg:hover canvas {
-  filter: blur(0.4px) brightness(1.02);
-}
-
-/* ═══ 滚动模糊 ═══ */
+/* ═══ 滚动模糊（底部边缘浅浅模糊） ═══ */
 .scroll-blur-container {
-  transition: filter 0.15s ease-out;
+  transition: filter 0.2s ease-out;
 }
 .scroll-blur-active {
-  filter: blur(0.6px) brightness(0.98);
+  filter: blur(0.3px) brightness(0.99);
 }
 
 /* ═══ 导航标签统一悬浮 ═══ */
@@ -143,21 +135,22 @@ nav .tab-btn:hover {
   filter: blur(0.3px) brightness(1.04);
 }
 
-/* ═══ 欢迎文字（清晰版） ═══ */
+/* ═══ 欢迎文字（浅浅模糊版） ═══ */
 .welcome-blur {
   font-size: clamp(2rem, 5vw, 4rem);
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #18181B;
-  text-shadow: 0 0 40px rgba(97,82,242,0.15), 0 0 80px rgba(8,145,178,0.08);
-  animation: welcomeUnblur 2s cubic-bezier(0.16,1,0.3,1) forwards;
+  text-shadow: 0 0 48px rgba(97,82,242,0.12), 0 0 96px rgba(8,145,178,0.06);
+  filter: blur(0.5px);
+  animation: welcomeUnblur 2.5s cubic-bezier(0.16,1,0.3,1) forwards;
   user-select: none;
   pointer-events: none;
 }
 @keyframes welcomeUnblur {
   0% { filter: blur(4px); opacity: 0; transform: translateY(-12px); }
-  70% { filter: blur(0px); opacity: 0.9; }
-  100% { filter: blur(0px); opacity: 1; transform: translateY(0); }
+  70% { filter: blur(0.2px); opacity: 0.85; }
+  100% { filter: blur(0.5px); opacity: 1; transform: translateY(0); }
 }
 
 /* ═══ 粘稠导航 ═══ */

@@ -5,7 +5,6 @@ import OverviewPage from './pages/OverviewPage';
 import PerformancePage from './pages/PerformancePage';
 import CurvesPage from './pages/CurvesPage';
 import ErrorsPage from './pages/ErrorsPage';
-import TablePage from './pages/TablePage';
 import DetailsPage from './pages/DetailsPage';
 
 const PAGES = {
@@ -13,7 +12,6 @@ const PAGES = {
   performance: PerformancePage,
   curves: CurvesPage,
   errors: ErrorsPage,
-  table: TablePage,
   details: DetailsPage,
 };
 

@@ -1,9 +1,8 @@
 const TABS = [
   { id: 'overview', label: '首页' },
-  { id: 'performance', label: '性能图表' },
+  { id: 'performance', label: '性能与数据' },
   { id: 'curves', label: '预测曲线' },
   { id: 'errors', label: '误差分析' },
-  { id: 'table', label: '数据表格' },
   { id: 'details', label: '详细报告' },
 ];
 

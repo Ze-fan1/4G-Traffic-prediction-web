@@ -5,6 +5,7 @@ import {
 import { Bar, Radar, Scatter } from 'react-chartjs-2';
 import { MODELS, CATS } from '../data/models';
 import { MODEL_COLORS_8, getPalette } from '../data/palette';
+import DataTable from '../components/DataTable';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, RadialLinearScale, Filler, Tooltip, Legend);
 
@@ -136,6 +137,9 @@ export default function PerformancePage() {
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">柱高 = 类别均值 · 悬停查看最值范围</p>
           <CategoryBarChart />
         </div>
+      </div>
+      <div className="mt-4">
+        <DataTable />
       </div>
     </div>
   );
