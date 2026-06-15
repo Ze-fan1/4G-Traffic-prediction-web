@@ -95,9 +95,9 @@ export default function OverviewPage() {
         <h3 className="text-sm font-semibold tracking-tight mb-2">核心结论</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#52525B] leading-relaxed">
           <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">1.</span> BaseModel 在全部 6 项指标上排名第一 (MSE=1.0628, ACC=0.5901)，验证了基线模型在 4G 流量预测任务上的有效性。</div>
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">2.</span> Transformer 类模型内部分化显著：iTransformer (ACC=0.5267) 与 BaseModel 仍有 ~12% 差距，但已远超传统 Transformer (ACC=0.4140) 和 Informer (ACC=0.4308)。</div>
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">3.</span> 轻量基线不可忽视：Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 的表现优于多个复杂深度学习模型，验证了强基线的重要性。</div>
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">4.</span> LLM 零样本方法 (Chronos 系列、TimeLLM) ACC 均未超过 0.45，通用预训练知识无法直接迁移到网络流量预测任务，需要领域微调或适配。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">2.</span> Transformer 架构内部分化显著：iTransformer (ACC=0.5267) 与 PatchTST (ACC=0.5239) 表现接近，但相比传统 Transformer (ACC=0.4140) 提升超 25%，注意力机制设计是核心差异。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">3.</span> 简单基线仍有竞争力：Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 优于多个复杂深度学习模型，强基线是公平评估的前提。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">4.</span> MAPE 指标需谨慎使用：标准化空间中大量模型 MAPE 超过 100%，建议以 Custom ACC 和 MSE 为主要评估依据。</div>
         </div>
       </div>
     </div>
