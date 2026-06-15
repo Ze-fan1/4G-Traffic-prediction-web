@@ -94,10 +94,10 @@ export default function OverviewPage() {
       <div className="card p-5">
         <h3 className="text-sm font-semibold tracking-tight mb-2">核心结论</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#52525B] leading-relaxed">
-          <div className="flex gap-2"><span className="text-emerald-600 font-bold flex-shrink-0">1.</span> BaseModel 在全部 6 项指标上排名第一，验证了自研架构在 4G 流量预测任务上的有效性。</div>
-          <div className="flex gap-2"><span className="text-emerald-600 font-bold flex-shrink-0">2.</span> Transformer 类模型中 iTransformer 表现最佳 (ACC=0.5267)，但仍与 BaseModel 存在约 12% 差距。</div>
-          <div className="flex gap-2"><span className="text-amber-600 font-bold flex-shrink-0">3.</span> 传统统计方法 MAPE 普遍偏高，建议以 ACC 和 MSE 作为主要评判标准。</div>
-          <div className="flex gap-2"><span className="text-amber-600 font-bold flex-shrink-0">4.</span> LLM Zero-shot 方法 (Chronos, TimeLLM) 在流量预测上表现有限，ACC 均低于 0.45。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">1.</span> BaseModel 在全部 6 项指标上排名第一 (MSE=1.0628, ACC=0.5901)，验证了基线模型在 4G 流量预测任务上的有效性。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">2.</span> Transformer 类模型内部分化显著：iTransformer (ACC=0.5267) 与 BaseModel 仍有 ~12% 差距，但已远超传统 Transformer (ACC=0.4140) 和 Informer (ACC=0.4308)。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">3.</span> 轻量基线不可忽视：Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 的表现优于多个复杂深度学习模型，验证了强基线的重要性。</div>
+          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">4.</span> LLM 零样本方法 (Chronos 系列、TimeLLM) ACC 均未超过 0.45，通用预训练知识无法直接迁移到网络流量预测任务，需要领域微调或适配。</div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import OverviewPage from './pages/OverviewPage';
@@ -18,25 +18,6 @@ const PAGES = {
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const mainRef = useRef(null);
-  const scrollTimer = useRef(null);
-
-  // 滚动模糊效果
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!mainRef.current) return;
-      mainRef.current.classList.add('scroll-blur-active');
-      if (scrollTimer.current) clearTimeout(scrollTimer.current);
-      scrollTimer.current = setTimeout(() => {
-        if (mainRef.current) mainRef.current.classList.remove('scroll-blur-active');
-      }, 150);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimer.current) clearTimeout(scrollTimer.current);
-    };
-  }, []);
 
   const handleLoadDone = useCallback(() => setLoading(false), []);
   const PageComponent = PAGES[activeTab];
@@ -46,8 +27,7 @@ export default function App() {
       {loading && <Loader onDone={handleLoadDone} />}
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       <main
-        ref={mainRef}
-        className="scroll-blur-container max-w-7xl mx-auto px-3 sm:px-5 pb-24"
+        className="max-w-7xl mx-auto px-3 sm:px-5 pb-24"
         style={{ opacity: loading ? 0 : 1, transition: 'opacity 0.5s' }}
       >
         <PageComponent key={activeTab} />

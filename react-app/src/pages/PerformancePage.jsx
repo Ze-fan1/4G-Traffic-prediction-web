@@ -114,7 +114,10 @@ function CategoryBarChart() {
 export default function PerformancePage() {
   return (
     <div className="page-enter">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+      <div className="mt-5">
+        <DataTable />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <div className="card p-5">
           <h3 className="text-sm font-semibold tracking-tight mb-0.5">Custom ACC 横向对比</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">所有模型按 ACC 升序排列 · 悬停查看详情</p>
@@ -137,9 +140,6 @@ export default function PerformancePage() {
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">柱高 = 类别均值 · 悬停查看最值范围</p>
           <CategoryBarChart />
         </div>
-      </div>
-      <div className="mt-4">
-        <DataTable />
       </div>
     </div>
   );

@@ -117,14 +117,6 @@ select:hover {
   filter: blur(0.3px) brightness(1.015);
 }
 
-/* ═══ 滚动模糊（底部边缘浅浅模糊） ═══ */
-.scroll-blur-container {
-  transition: filter 0.2s ease-out;
-}
-.scroll-blur-active {
-  filter: blur(0.3px) brightness(0.99);
-}
-
 /* ═══ 导航标签统一悬浮 ═══ */
 nav .tab-btn {
   transition: filter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
