@@ -41,7 +41,7 @@ function PredictionCurvesChart({ channelIdx, hiddenModels, onToggleModel }) {
     plugins: { legend: { display: false } },
     scales: {
       x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA' }, title: { display: true, text: 'Forecast Horizon (hours)', color: '#A1A1AA' } },
-      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', callback: (v) => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v.toFixed(0) }, title: { display: true, text: CHANNELS[channelIdx]?.desc || '', color: '#A1A1AA' } },
+      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', callback: (v) => { if (Math.abs(v) >= 1e6) return (v/1e6).toFixed(1)+'M'; if (Math.abs(v) >= 1000) return (v/1000).toFixed(1)+'k'; if (Math.abs(v) < 0.1) return v.toFixed(4); return v.toFixed(2); } }, title: { display: true, text: CHANNELS[channelIdx]?.desc || '', color: '#A1A1AA' } },
     },
   }), [channelIdx]);
 
@@ -91,7 +91,7 @@ function MultiWindowChart() {
     plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, padding: 12, font: { size: 9 }, color: '#52525B' } } },
     scales: {
       x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA' }, title: { display: true, text: 'Window Index', color: '#A1A1AA' } },
-      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', callback: (v) => v >= 1000 ? (v/1000).toFixed(1) + 'k' : v.toFixed(0) }, title: { display: true, text: 'ERAB Traffic', color: '#A1A1AA' } },
+      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', callback: (v) => { if (Math.abs(v) >= 1e6) return (v/1e6).toFixed(1)+'M'; if (Math.abs(v) >= 1000) return (v/1000).toFixed(1)+'k'; if (Math.abs(v) < 0.1) return v.toFixed(4); return v.toFixed(2); } }, title: { display: true, text: 'Total Traffic', color: '#A1A1AA' } },
     },
   }), []);
 
