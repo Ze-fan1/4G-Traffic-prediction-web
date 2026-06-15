@@ -99,7 +99,7 @@ function MultiWindowChart() {
 }
 
 export default function CurvesPage() {
-  const [channelIdx, setChannelIdx] = useState(0);
+  const [channelIdx, setChannelIdx] = useState(1);
   const [hiddenModels, setHiddenModels] = useState(new Set());
   const toggleModel = useCallback((model) => { setHiddenModels(prev => { const next = new Set(prev); if (next.has(model)) next.delete(model); else next.add(model); return next; }); }, []);
 
