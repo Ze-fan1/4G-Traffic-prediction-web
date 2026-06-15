@@ -7,10 +7,34 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@350;400;450;500;550;600;650;700;800&family=JetBrains+Mono:wght@400;500;550&display=swap" rel="stylesheet">
+    <style>
+      #fallback { display: none; font-family: Inter, sans-serif; padding: 60px 20px; text-align: center; color: #52525B; }
+      #fallback h1 { color: #16A34A; font-size: 24px; }
+      #fallback p { font-size: 14px; margin: 10px 0; }
+      #fallback code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+      .no-js #fallback { display: block; }
+    </style>
     <script type="module" crossorigin src="/4G-Traffic-prediction-web/assets/index-CjrKOsVL.js"></script>
     <link rel="stylesheet" crossorigin href="/4G-Traffic-prediction-web/assets/index-BNRpGFzP.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
+    <div id="fallback">
+      <h1>4G Traffic Prediction Benchmark</h1>
+      <p>App loading… 如果长时间看不到内容，请尝试：</p>
+      <p>1. 强制刷新 <code>Ctrl+Shift+R</code></p>
+      <p>2. 清除浏览器缓存</p>
+      <p>3. 换个浏览器试试</p>
+      <p style="margin-top:30px;color:#A1A1AA;font-size:12px">React App v3</p>
+    </div>
+    <script>
+      // Show fallback if React doesn't render within 5 seconds
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (!root || root.children.length === 0) {
+          document.getElementById('fallback').style.display = 'block';
+        }
+      }, 5000);
+    </script>
   </body>
 </html>
