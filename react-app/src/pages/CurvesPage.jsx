@@ -41,7 +41,7 @@ function PredictionCurvesChart({ channelIdx, hiddenModels, onToggleModel }) {
     plugins: { legend: { display: false } },
     scales: {
       x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA' }, title: { display: true, text: 'Forecast Horizon (hours)', color: '#A1A1AA' } },
-      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', callback: (v) => { if (Math.abs(v) >= 1e6) return (v/1e6).toFixed(1)+'M'; if (Math.abs(v) >= 1000) return (v/1000).toFixed(1)+'k'; if (Math.abs(v) < 0.1) return v.toFixed(4); return v.toFixed(2); } }, title: { display: true, text: CHANNELS[channelIdx]?.desc || '', color: '#A1A1AA' } },
+      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', callback: (v) => v.toFixed(2) }, title: { display: true, text: '标准化值 (σ)', color: '#A1A1AA' } },
     },
   }), [channelIdx]);
 
@@ -120,11 +120,10 @@ export default function CurvesPage() {
       <div className="card p-5 mt-4">
         <h3 className="text-sm font-semibold tracking-tight mb-2">图表说明</h3>
         <div className="text-xs text-[#52525B] leading-relaxed space-y-1.5">
-          <p><strong>黑色实线</strong> = 测试集真实值（来自 <code>df_4g_test_100.parquet</code>，100 基站 × 7 天小时级数据，共 5378 个滑动窗口）</p>
-          <p><strong>绿色线</strong> = ★ BaseModel（自研基线模型，直接输出原始空间预测值）</p>
-          <p><strong>其他彩色线</strong> = DL 模型（在标准化空间训练，经逆变换还原到原始空间）</p>
-          <p className="mt-2"><strong>关于 DL 模型预测偏差：</strong>DL 模型在 StandardScaler 标准化后的空间训练（各通道均值为 0、标准差为 1），优化目标是最小化标准化空间的 MSE。逆变换回原始空间时，大值通道（如 ERAB 流量，std=9328）会将微小的标准化误差急剧放大。BaseModel 直接输出原始空间值，无此放大效应。这是标准化训练的固有局限，并非模型失效。</p>
-          <p className="text-[#A1A1AA] mt-1">💡 切换不同通道观察：PDCCH/PUSCH 利用率等小值通道的 DL 模型预测更贴近真实值。</p>
+          <p><strong>黑色实线</strong> = 测试集真实值（标准化后，单位：σ）</p>
+          <p><strong>所有曲线均在标准化空间</strong>（StandardScaler, 各通道均值=0, 标准差=1）。BaseModel 也经过相同标准化变换，与 DL 模型在同一尺度下直接可比。</p>
+          <p className="mt-2"><strong>关于标准化空间：</strong>DL 模型在此空间训练（MSE 优化目标），因此在此空间对比最为公平。之前"看起来不贴合"是因为在原始空间（GB/利用率）对比时，ERAB 等大值通道的 Scaler std 达 9328，放大了微小误差。标准化空间消除了这一尺度差异。</p>
+          <p className="text-[#A1A1AA] mt-1">💡 Y 轴单位为标准差（σ），1σ ≈ 偏离均值一个标准差。正值表示高于历史均值，负值表示低于历史均值。</p>
         </div>
       </div>
       <div className="card p-5 mt-4"><h3 className="text-sm font-semibold tracking-tight mb-0.5">多时间窗口 · Top 6 模型总流量预测</h3><p className="text-[0.65rem] text-[#A1A1AA] mb-3">6 个窗口采样 · 真实值 vs 预测值 (midpoint hour=12)</p><MultiWindowChart /></div>
