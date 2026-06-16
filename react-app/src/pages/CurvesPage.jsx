@@ -10,9 +10,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i + 1);
 const ALL_MODELS = Object.keys(predictionCurves.models);
-// All non-BaseModel models share DL reference truth
-const DL_MODELS = ALL_MODELS.filter(n => !n.includes('BaseModel'));
-const BASEMODEL = ALL_MODELS.find(n => n.includes('BaseModel'));
+// All 9 models now share the same DL reference truth (BaseModel re-run with DL pipeline)
 
 function PredictionCurvesChart({ channelIdx, hiddenModels, onToggleModel, models, groundTruthModel }) {
   const hours = useMemo(() => HOURS.map(h => `${h}h`), []);
@@ -113,10 +111,10 @@ export default function CurvesPage() {
 
   return (
     <div className="page-enter">
-      {/* Main chart: 8 DL models (shared test data) */}
+      {/* Main chart: all 9 models (shared DL test data pipeline) */}
       <div className="card p-5 mt-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div><h3 className="text-sm font-semibold tracking-tight">24h 预测曲线对比 <span style={{color:'#16A34A',fontSize:'0.7rem',fontWeight:700}}>【标准化空间 σ】</span></h3><p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">Window #{predictionCurves.window} · 代表性窗口（秩相关最优）· 8 个 DL 模型共享相同测试数据 · 点击模型名称显隐曲线</p></div>
+          <div><h3 className="text-sm font-semibold tracking-tight">24h 预测曲线对比 <span style={{color:'#16A34A',fontSize:'0.7rem',fontWeight:700}}>【标准化空间 σ】</span></h3><p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">Window #{predictionCurves.window} · 代表性窗口（秩相关最优）· 9 个模型共享相同标准化测试数据 · 点击模型名称显隐曲线</p></div>
           <div className="flex items-center gap-2">
             <span className="text-[0.65rem] text-[#A1A1AA]">通道:</span>
             <select value={channelIdx} onChange={(e) => setChannelIdx(Number(e.target.value))} className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer focus:outline-none focus:border-[#6152F2] transition-colors">
@@ -124,35 +122,16 @@ export default function CurvesPage() {
             </select>
           </div>
         </div>
-        <PredictionCurvesChart channelIdx={channelIdx} hiddenModels={hiddenModels} onToggleModel={toggleModel} models={DL_MODELS} groundTruthModel={DL_MODELS[0]} />
+        <PredictionCurvesChart channelIdx={channelIdx} hiddenModels={hiddenModels} onToggleModel={toggleModel} models={ALL_MODELS} groundTruthModel={ALL_MODELS[0]} />
       </div>
-
-      {/* BaseModel standalone card */}
-      {BASEMODEL && (
-        <div className="card p-5 mt-4" style={{ borderLeft: '3px solid #16A34A' }}>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-sm font-semibold tracking-tight">
-                <span style={{ color: '#16A34A' }}>★ BaseModel</span> 预测 vs 真值
-                <span style={{ color: '#16A34A', fontSize: '0.7rem', fontWeight: 700, marginLeft: 8 }}>【标准化空间 σ】</span>
-              </h3>
-              <p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">
-                Window #{predictionCurves.window} · BaseModel 与自身测试数据对比（单独窗口对齐）
-              </p>
-            </div>
-          </div>
-          <PredictionCurvesChart channelIdx={channelIdx} hiddenModels={hiddenModels} onToggleModel={toggleModel} models={[BASEMODEL]} groundTruthModel={BASEMODEL} />
-        </div>
-      )}
 
       <div className="card p-5 mt-4">
         <h3 className="text-sm font-semibold tracking-tight mb-2">图表说明</h3>
         <div className="text-xs text-[#52525B] leading-relaxed space-y-1.5">
           <p><strong>黑色实线</strong> = 测试集真实值（标准化后，单位：σ）— Window #{predictionCurves.window}</p>
-          <p><strong>代表性窗口选择：</strong>在全部 {predictionCurves.n_windows || 5378} 个窗口中，选择与整体 MAE 排名秩相关系数最高的窗口（corr≈0.98），确保该窗口的模型相对排序与全局平均一致。</p>
-          <p className="mt-2"><strong>主图（8 DL 模型）：</strong>iTransformer、PatchTST、SegRNN、DLinear、TimesNet、Autoformer、Transformer、IBM TTM 共享相同的标准化测试数据，可在此空间直接对比。</p>
-          <p><strong>★ BaseModel 单独卡片：</strong>BaseModel 使用原始空间数据（经 swap+scaler 转换为标准化空间），其测试数据窗口与 DL 模型不对齐（同一窗口索引对应不同时间段），因此单独展示与自身真值的对比。</p>
-          <p className="text-[#A1A1AA] mt-1">💡 Y 轴单位为标准差（σ）。正值表示高于历史均值，负值表示低于历史均值。切换通道可查看不同指标的预测表现。</p>
+          <p><strong>代表性窗口选择：</strong>在全部 {predictionCurves.n_windows || 5378} 个窗口中，选择与整体 MAE 排名秩相关系数最高的窗口（corr≈0.97），确保该窗口的模型相对排序与全局平均一致。</p>
+          <p className="mt-2"><strong>所有 9 个模型共享相同标准化数据管道：</strong>★ BaseModel 已重新运行，使用与 DL 模型完全相同的标准化流程（StandardScaler 拟合于训练集，测试数据相同、滑动窗口对齐），可直接在同一张图上公平对比。DL 模型包括 iTransformer、PatchTST、SegRNN、DLinear、TimesNet、Autoformer、Transformer、IBM TTM。</p>
+          <p className="text-[#A1A1AA] mt-1">💡 Y 轴单位为标准差（σ）。正值表示高于历史均值，负值表示低于历史均值。切换通道可查看不同指标的预测表现。BaseModel 以实线标注，DL 模型以虚线标注。</p>
         </div>
       </div>
 

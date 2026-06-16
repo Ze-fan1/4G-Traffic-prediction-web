@@ -52,6 +52,9 @@ for folder in sorted(os.listdir(results_dir)):
     elif name == 'HistoricalAverage': name = 'Historical Avg'
     elif name == 'Persistent24h': name = 'Persistent 24h'
     elif name == 'IBM_TTM': name = 'IBM TTM'
+    elif name.startswith('Mamba_'): name = 'Mamba'
+    elif name.startswith('TimeLLM_'): name = 'TimeLLM'
+    elif name.startswith('XGBoost_'): name = 'XGBoost'
     model_info[folder] = name
 
 print(f"Found {len(model_info)} models with prediction data")
@@ -71,6 +74,10 @@ for folder, name in model_info.items():
     }
 
 # ── Space detection via true.npy comparison (as in plot_all_models_final.py) ──
+# Use allclose (tol=1e-4) to handle floating-point variation from different scaler fits
+def _true_equal(a, b):
+    return np.allclose(a, b, rtol=1e-5, atol=1e-4)
+
 # Get reference true from first model
 first_name = list(raw.keys())[0]
 ref_true_orig = raw[first_name]['true']
@@ -78,7 +85,7 @@ ref_true_orig = raw[first_name]['true']
 # Find first model whose true DIFFERS from reference → scaled space reference
 ref_true_scaled = None
 for name, data in raw.items():
-    if not np.array_equal(data['true'], ref_true_orig):
+    if not _true_equal(data['true'], ref_true_orig):
         ref_true_scaled = data['true']
         break
 
@@ -92,9 +99,9 @@ models_scaled = {} # true matches ref_true_scaled
 models_other = {}  # true matches neither
 
 for name, data in raw.items():
-    if np.array_equal(data['true'], ref_true_orig):
+    if _true_equal(data['true'], ref_true_orig):
         models_orig[name] = data
-    elif ref_true_scaled is not None and np.array_equal(data['true'], ref_true_scaled):
+    elif ref_true_scaled is not None and _true_equal(data['true'], ref_true_scaled):
         models_scaled[name] = data
     else:
         models_other[name] = data
@@ -176,6 +183,9 @@ CORE_MODELS = [
     'Autoformer',
     'Transformer',
     'IBM TTM',
+    'XGBoost',
+    'Mamba',
+    'TimeLLM',
 ]
 
 # Verify all core models have valid scaled predictions

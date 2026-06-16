@@ -41,7 +41,7 @@ export default function OverviewPage() {
         </div>
         <div className="card card-glow shape-blur p-5">
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Lowest MSE</p>
-          <p className="text-2xl font-bold tracking-tight">1.0628</p>
+          <p className="text-2xl font-bold tracking-tight">1.0615</p>
         </div>
         <div className="card card-glow shape-blur p-5">
           <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Experiment Setup</p>

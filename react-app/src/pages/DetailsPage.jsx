@@ -39,7 +39,7 @@ export default function DetailsPage() {
           <h3 className="text-sm font-semibold tracking-tight mb-3">详细分析</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-[#52525B] leading-relaxed">
             {[
-              ['1. BaseModel 全面领先', '6 项指标全部第一 (MSE=1.0628, ACC=0.5901)，相比第二名 iTransformer ACC 提升 12.0%，验证了基线模型在 4G 流量预测上的有效性。'],
+              ['1. BaseModel 全面领先', '6 项指标全部第一 (MSE=1.0615, ACC=0.5901)，相比第二名 iTransformer ACC 提升 12.0%，验证了基线模型在 4G 流量预测上的有效性。'],
               ['2. Transformer 分化显著', 'iTransformer (ACC=0.5267) 和 PatchTST (ACC=0.5239) 表现接近，但相比原生 Transformer (ACC=0.4140) 提升超过 27%，注意力机制设计是核心差异。'],
               ['3. 轻量基线有竞争力', 'Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 的 ACC 超过 Autoformer、Informer 等复杂模型，表明强基线设定是公平评估的前提。'],
               ['4. LLM Zero-shot 泛化不足', 'Chronos 全系和 TimeLLM ACC 均低于 0.45，通用预训练知识无法直接迁移至网络流量预测，需要领域微调或适配层。'],

@@ -10,8 +10,22 @@ export const CAT_PALETTE = {
   'LLM':         { bg: '#FCE7F3', border: '#BE185D', text: '#9D174D', fill: 'rgba(190,24,93,0.55)', fillLight: 'rgba(190,24,93,0.08)', label: 'LLM' },
 };
 
-export const MODEL_COLORS_9 = ['#16A34A','#DC2626','#2563EB','#D97706','#7C3AED','#6152F2','#0891B2','#BE185D','#78716C'];
-export const MODEL_COLORS_8 = MODEL_COLORS_9;
+export const MODEL_COLORS_12 = [
+  '#16A34A', // Baseline green
+  '#DC2626', // Red
+  '#2563EB', // Blue
+  '#D97706', // Amber
+  '#7C3AED', // Purple
+  '#6152F2', // Indigo
+  '#0891B2', // Cyan
+  '#BE185D', // Pink
+  '#78716C', // Warm gray
+  '#059669', // Emerald
+  '#EA580C', // Orange
+  '#4F46E5', // Deep indigo
+];
+export const MODEL_COLORS_9 = MODEL_COLORS_12;
+export const MODEL_COLORS_8 = MODEL_COLORS_12;
 export const MODEL_COLORS_6 = ['#16A34A', '#DC2626', '#2563EB', '#D97706', '#7C3AED', '#6152F2'];
 
 export function getPalette(model) {

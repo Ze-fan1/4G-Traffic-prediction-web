@@ -1,6 +1,9 @@
 """
-External Base Model Evaluation — sliding window protocol.
-Matches the framework's 24h→24h, step=3 sliding window evaluation exactly.
+External Base Model Evaluation — DL-compatible data pipeline.
+Matches the framework's Dataset_Custom exactly and saves in SCALED space
+so BaseModel can be directly compared with DL models on the same chart.
+
+Usage: python base.py --root_path ./data_provider/4g_traffic/
 """
 import os, sys
 import numpy as np
@@ -12,6 +15,7 @@ from models.utils.metrics import MAE, MSE, RMSE, MAPE, MSPE, calc_custom_acc
 
 DROP_COLS = ['date', 'ID编号', '厂商', '频段', '场景']
 SEQ_LEN, PRED_LEN, STEP = 24, 24, 3
+TARGET = '总流量'
 
 
 def main():
@@ -21,68 +25,102 @@ def main():
     args = parser.parse_args()
 
     train_fp = os.path.join(args.root_path, 'df_4g_train_100.parquet')
-    test_fp = os.path.join(args.root_path, 'df_4g_test_100.parquet')
-    base_fp = os.path.join(args.root_path, 'df_4g_base_100.parquet')
+    test_fp  = os.path.join(args.root_path, 'df_4g_test_100.parquet')
+    base_fp  = os.path.join(args.root_path, 'df_4g_base_100.parquet')
 
     print(">>>>>> Loading data...")
     df_train = pd.read_parquet(train_fp)
-    df_test = pd.read_parquet(test_fp)
-    df_base = pd.read_parquet(base_fp)
+    df_test  = pd.read_parquet(test_fp)
+    df_base  = pd.read_parquet(base_fp)
 
-    feature_cols = [c for c in df_train.columns if c not in DROP_COLS]
-    num_channels = len(feature_cols)
-    print(f">>>>>> Features ({num_channels}): {feature_cols}")
+    # ── Same column processing as Dataset_Custom ──
+    # 1. Drop non-numeric / static columns
+    for col in ['ID编号', '厂商', '频段', '场景']:
+        if col in df_train.columns:
+            df_train = df_train.drop(columns=[col])
+        if col in df_test.columns:
+            df_test = df_test.drop(columns=[col])
+        if col in df_base.columns:
+            df_base = df_base.drop(columns=[col])
 
-    # Merge base predictions with test data on date/ID
-    merge_keys = ['date', 'ID编号']
-    for key in ['厂商', '频段', '场景']:
-        if key in df_test.columns and key in df_base.columns:
-            merge_keys.append(key)
+    # 2. Reorder: date + cols(no target, no date) + [target]
+    train_cols = list(df_train.columns)
+    train_cols.remove(TARGET)
+    train_cols.remove('date')
+    feature_order = train_cols + [TARGET]   # 8 features, target last
+    df_train = df_train[['date'] + feature_order]
 
-    df_merged = pd.merge(df_test, df_base, on=merge_keys, suffixes=('_true', '_pred'))
-    if len(df_merged) == 0:
-        raise ValueError("Merge failed! Check date/ID alignment.")
-    print(f">>>>>> Merged {len(df_merged)} rows")
+    # Apply same column order to test
+    df_test = df_test[['date'] + feature_order]
 
-    # Extract true and predicted values, sorted by date
-    df_merged = df_merged.sort_values('date')
-    true_vals = df_merged[feature_cols].values  # (N, 8)
-    pred_vals = np.column_stack([
-        df_merged[f'forecast_{c}'].values for c in feature_cols
-    ])  # (N, 8)
+    num_channels = len(feature_order)
+    print(f">>>>>> Features ({num_channels}): {feature_order}")
 
-    # Fit scaler on training data (same as DL models)
+    # ── Fit scaler on training data (same as DL models) ──
     scaler = StandardScaler()
-    scaler.fit(df_train[feature_cols].values)
+    scaler.fit(df_train[feature_order].values)
 
-    true_scaled = scaler.transform(true_vals)
-    pred_scaled = scaler.transform(pred_vals)
+    # ── Scale test data → ground truth in scaled space ──
+    test_arr = df_test[feature_order].values          # (16181, 8)
+    test_scaled = scaler.transform(test_arr)
 
-    # Create sliding windows (same protocol as framework)
-    indices = list(range(0, len(true_scaled) - SEQ_LEN - PRED_LEN + 1, STEP))
+    # ── Align base predictions with test data ──
+    # test and base are perfectly aligned (same dates, IDs, 16181 rows)
+    # Extract forecast columns from base, reorder to match feature_order
+    fc_map = {}
+    for fc in df_base.columns:
+        if fc.startswith('forecast_'):
+            base_name = fc[len('forecast_'):]  # strip prefix
+            fc_map[base_name] = fc
+
+    pred_vals_list = []
+    for feat in feature_order:
+        if feat in fc_map:
+            pred_vals_list.append(df_base[fc_map[feat]].values)
+        else:
+            # Fallback: build forecast col name literally
+            fc_name = f'forecast_{feat}'
+            if fc_name in df_base.columns:
+                pred_vals_list.append(df_base[fc_name].values)
+            else:
+                raise KeyError(f"Cannot find forecast column for feature '{feat}'")
+
+    pred_arr = np.column_stack(pred_vals_list)        # (16181, 8)
+    pred_scaled = scaler.transform(pred_arr)
+
+    # Verify alignment
+    assert len(test_scaled) == len(pred_scaled) == 16181, \
+        f"Row count mismatch: test={len(test_scaled)}, pred={len(pred_scaled)}"
+
+    # ── Create sliding windows (exact Dataset_Custom protocol) ──
+    N = len(test_scaled)
+    n_expected = (N - SEQ_LEN - PRED_LEN + 1) // STEP  # (16181 - 47) // 3 = 5378
+    indices = list(range(0, N - SEQ_LEN - PRED_LEN + 1, STEP))
+    assert len(indices) == n_expected == 5378, \
+        f"Window count mismatch: got {len(indices)}, expected {n_expected}"
     print(f">>>>>> Sliding windows: {len(indices)} (seq={SEQ_LEN}, pred={PRED_LEN}, step={STEP})")
 
     trues_list, preds_list = [], []
     for i in indices:
-        Y = true_scaled[i + SEQ_LEN : i + SEQ_LEN + PRED_LEN]  # (24, 8)
-        P = pred_scaled[i + SEQ_LEN : i + SEQ_LEN + PRED_LEN]  # (24, 8)
+        Y = test_scaled[i + SEQ_LEN : i + SEQ_LEN + PRED_LEN]   # (24, 8)
+        P = pred_scaled[i + SEQ_LEN : i + SEQ_LEN + PRED_LEN]   # (24, 8)
         trues_list.append(Y)
         preds_list.append(P)
 
-    preds_3d = np.array(preds_list)  # (windows, 24, 8)
-    trues_3d = np.array(trues_list)  # (windows, 24, 8)
+    preds_3d = np.array(preds_list)  # (5378, 24, 8)
+    trues_3d = np.array(trues_list)  # (5378, 24, 8)
 
-    # MSE/MAE/RMSE in scaled space
-    mse = MSE(preds_3d, trues_3d)
-    mae = MAE(preds_3d, trues_3d)
-    rmse = np.sqrt(mse)
+    # ── Metrics in scaled space ──
+    mse  = MSE(preds_3d, trues_3d)
+    mae  = MAE(preds_3d, trues_3d)
+    rmse = float(np.sqrt(mse))
 
-    # MAPE/MSPE/Custom_ACC in original space (inverse transform)
-    preds_flat_scaled = preds_3d.reshape(-1, num_channels)
-    trues_flat_scaled = trues_3d.reshape(-1, num_channels)
+    # ── MAPE / MSPE / Custom_ACC in original space ──
+    preds_flat = preds_3d.reshape(-1, num_channels)
+    trues_flat = trues_3d.reshape(-1, num_channels)
 
-    preds_orig = scaler.inverse_transform(preds_flat_scaled)
-    trues_orig = scaler.inverse_transform(trues_flat_scaled)
+    preds_orig = scaler.inverse_transform(preds_flat)
+    trues_orig = scaler.inverse_transform(trues_flat)
 
     preds_orig_3d = preds_orig.reshape(preds_3d.shape)
     trues_orig_3d = trues_orig.reshape(trues_3d.shape)
@@ -96,29 +134,27 @@ def main():
 
     avg_acc = calc_custom_acc(preds_orig_3d, trues_orig_3d)
 
-    # Save results
+    # ── Report ──
     result_str = (f'MSE:{mse:.4f}, MAE:{mae:.4f}, RMSE:{rmse:.4f}, '
                   f'MAPE:{mape:.4f}, MSPE:{mspe:.4f}, Custom_ACC:{avg_acc:.4f}')
 
     print('\n' + '=' * 60)
-    print('    EXTERNAL BASE MODEL EVALUATION RESULTS')
+    print('    EXTERNAL BASE MODEL (SCALED SPACE — DL compatible)')
     print('=' * 60)
-    print(f'Model: External_BaseModel (sliding window, {len(indices)} windows)')
+    print(f'Model: External_BaseModel | {len(indices)} windows')
     print(result_str)
     print('=' * 60)
 
-    setting = f'External_BaseModel_4G_Base_v2_Verify'
+    setting = 'External_BaseModel_4G_Base_v2_Verify'
     with open('result_long_term_forecast.txt', 'a') as f:
         f.write(f'{setting}\n{result_str}\n\n')
 
-    # Save numpy arrays for plot script
+    # ── CRITICAL: Save in SCALED space (same as DL models) ──
     save_dir = f'results/{setting}'
     os.makedirs(save_dir, exist_ok=True)
-    np.save(os.path.join(save_dir, 'pred.npy'), preds_orig_3d)
-    np.save(os.path.join(save_dir, 'true.npy'), trues_orig_3d)
-    print(f'Results saved to {save_dir}/')
-
-    # Also save a copy with the original folder name for backward compat
+    np.save(os.path.join(save_dir, 'pred.npy'), preds_3d)   # scaled space ← KEY CHANGE
+    np.save(os.path.join(save_dir, 'true.npy'), trues_3d)   # scaled space ← KEY CHANGE
+    print(f'Results saved to {save_dir}/  [SCALED space]')
     print('>>>>>> Base model evaluation complete!')
 
 
