@@ -24,34 +24,36 @@ export default function OverviewPage() {
       <div className="relative mt-5 mb-6 text-center overflow-hidden py-8">
         <h1 className="welcome-blur" aria-hidden="true">4G Traffic Prediction</h1>
         <p className="text-sm text-[#A1A1AA] mt-2 tracking-wide" style={{ animation: 'fadeIn 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) both' }}>
-          26 Models · 8 Channels · 24h Forecast
+          26 模型 · 8 通道多变量输入 · 24h 滚动预测基准平台
         </p>
       </div>
 
+      {/* Hero cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <div className="card card-glow shape-blur p-5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'var(--accent)' }} />
-          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Best Model</p>
-          <p className="text-xl font-semibold tracking-tight">BaseModel</p>
+          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">最优模型</p>
+          <p className="text-xl font-semibold tracking-tight">★ BaseModel</p>
         </div>
         <div className="card card-glow shape-blur p-5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'var(--accent)' }} />
-          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Custom ACC</p>
+          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">最高 Custom ACC</p>
           <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--accent)' }}>0.5901</p>
         </div>
         <div className="card card-glow shape-blur p-5">
-          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Lowest MSE</p>
+          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">最低 MSE</p>
           <p className="text-2xl font-bold tracking-tight">1.0615</p>
         </div>
         <div className="card card-glow shape-blur p-5">
-          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">Experiment Setup</p>
-          <p className="text-2xl font-bold tracking-tight">8 channels</p>
-          <p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">24h forecast · 3h rolling</p>
+          <p className="text-[0.65rem] text-[#A1A1AA] uppercase tracking-wider font-medium mb-1.5">实验配置</p>
+          <p className="text-2xl font-bold tracking-tight">8 通道</p>
+          <p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">24h 预测 · 3h 滚动步长</p>
         </div>
       </div>
 
+      {/* ACC Ranking */}
       <div className="card p-5 mb-5">
-        <h3 className="text-sm font-semibold tracking-tight mb-3">Custom ACC 排名 · 全部模型</h3>
+        <h3 className="text-sm font-semibold tracking-tight mb-3">Custom ACC 排名 · 全部 {MODELS.length} 模型</h3>
         <div className="space-y-1.5">
           {sorted.map((m, i) => {
             const c = getCat(m);
@@ -91,13 +93,26 @@ export default function OverviewPage() {
         </div>
       </div>
 
+      {/* Core Conclusions */}
       <div className="card p-5">
-        <h3 className="text-sm font-semibold tracking-tight mb-2">核心结论</h3>
+        <h3 className="text-sm font-semibold tracking-tight mb-2">核心发现</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#52525B] leading-relaxed">
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">1.</span> BaseModel 在全部 6 项指标上排名第一 (MSE=1.0628, ACC=0.5901)，验证了基线模型在 4G 流量预测任务上的有效性。</div>
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">2.</span> Transformer 架构内部分化显著：iTransformer (ACC=0.5267) 与 PatchTST (ACC=0.5239) 表现接近，但相比传统 Transformer (ACC=0.4140) 提升超 25%，注意力机制设计是核心差异。</div>
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">3.</span> 简单基线仍有竞争力：Persistent_24h (ACC=0.4477) 和 XGBoost (ACC=0.4729) 优于多个复杂深度学习模型，强基线是公平评估的前提。</div>
-          <div className="flex gap-2"><span className="text-[#52525B] font-bold flex-shrink-0">4.</span> MAPE 指标需谨慎使用：标准化空间中大量模型 MAPE 超过 100%，建议以 Custom ACC 和 MSE 为主要评估依据。</div>
+          <div className="flex gap-2">
+            <span className="text-[#52525B] font-bold flex-shrink-0">1.</span>
+            <p><strong>★ BaseModel 六项指标全面领先</strong>（MSE=1.0615, ACC=0.5901），验证了自研多尺度特征融合架构在 4G RAN 侧 KPI 预测任务上的显著优势。相比第二名 iTransformer，ACC 相对提升 12.0%。</p>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[#52525B] font-bold flex-shrink-0">2.</span>
+            <p><strong>Transformer 架构内部表现分化明显。</strong>iTransformer（ACC=0.5267）与 PatchTST（ACC=0.5239）接近，但原生 Transformer（ACC=0.4140）落后超 27%，说明注意力机制的改进设计是性能提升的关键。</p>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[#52525B] font-bold flex-shrink-0">3.</span>
+            <p><strong>统计基线仍有参考价值，但已非 SOTA。</strong>XGBoost（ACC=0.4729）和 LightTS（ACC=0.5236）等轻量模型表现稳健，但低于 BaseModel 和 iTransformer 等先进模型。设置强基线对公平 benchmark 至关重要。</p>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[#52525B] font-bold flex-shrink-0">4.</span>
+            <p><strong>零样本 LLM 模型在 4G 流量预测上泛化不足。</strong>Chronos 全系和 TimeLLM 的 ACC 均低于 0.45，通用时序预训练知识无法直接迁移至网络流量领域，需要领域微调或适配层设计。</p>
+          </div>
         </div>
       </div>
     </div>

@@ -298,8 +298,9 @@ def run_traditional_single(model_name):
 
     save_dir = f'results/{model_name}_4G'
     os.makedirs(save_dir, exist_ok=True)
-    np.save(f'{save_dir}/pred.npy', preds_inv.reshape(-1, pred_len, preds[0].shape[1]))
-    np.save(f'{save_dir}/true.npy', trues_inv.reshape(-1, pred_len, preds[0].shape[1]))
+    # Save SCALED space (matching DL model convention for generate_web_data.py)
+    np.save(f'{save_dir}/pred.npy', preds_arr.reshape(-1, pred_len, preds[0].shape[1]))
+    np.save(f'{save_dir}/true.npy', trues_arr.reshape(-1, pred_len, preds[0].shape[1]))
 
     return mse, mae, rmse, mape, mspe, acc
 
@@ -561,8 +562,9 @@ def run_ttm():
 
     save_dir = f'results/{setting}'
     os.makedirs(save_dir, exist_ok=True)
-    np.save(f'{save_dir}/pred.npy', preds_inv_3d)
-    np.save(f'{save_dir}/true.npy', trues_inv_3d)
+    # Save SCALED space (matching DL model convention for generate_web_data.py)
+    np.save(f'{save_dir}/pred.npy', preds_arr.reshape(-1, pred_len, num_channels))
+    np.save(f'{save_dir}/true.npy', trues_arr.reshape(-1, pred_len, num_channels))
     print(f'  [OK] TTM 完成！')
 
 

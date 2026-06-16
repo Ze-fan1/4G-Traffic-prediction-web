@@ -55,6 +55,12 @@ for folder in sorted(os.listdir(results_dir)):
     elif name.startswith('Mamba_'): name = 'Mamba'
     elif name.startswith('TimeLLM_'): name = 'TimeLLM'
     elif name.startswith('XGBoost_'): name = 'XGBoost'
+    elif name.startswith('Informer_'): name = 'Informer'
+    elif name.startswith('LightTS_'): name = 'LightTS'
+    elif name.startswith('TSMixer_'): name = 'TSMixer'
+    elif name.startswith('SCINet_'): name = 'SCINet'
+    elif name == 'AutoAR_4G': name = 'AutoAR'
+    elif name == 'LinearRegression_4G': name = 'LinearRegression'
     model_info[folder] = name
 
 print(f"Found {len(model_info)} models with prediction data")
@@ -73,83 +79,70 @@ for folder, name in model_info.items():
         'folder': folder,
     }
 
-# ── Space detection via true.npy comparison (as in plot_all_models_final.py) ──
-# Use allclose (tol=1e-4) to handle floating-point variation from different scaler fits
+# ── Space detection via true.npy comparison ──
+# First group models by true.npy equality, then pick the largest group as DL reference
 def _true_equal(a, b):
     return np.allclose(a, b, rtol=1e-5, atol=1e-4)
 
-# Get reference true from first model
-first_name = list(raw.keys())[0]
-ref_true_orig = raw[first_name]['true']
-
-# Find first model whose true DIFFERS from reference → scaled space reference
-ref_true_scaled = None
+# Cluster models by true.npy
+true_groups = {}  # group_key -> [model_names]
+group_true = {}   # group_key -> representative true array
 for name, data in raw.items():
-    if not _true_equal(data['true'], ref_true_orig):
-        ref_true_scaled = data['true']
-        break
+    t = data['true']
+    matched = False
+    for gkey in true_groups:
+        if _true_equal(t, group_true[gkey]):
+            true_groups[gkey].append(name)
+            matched = True
+            break
+    if not matched:
+        gkey = f'group_{len(true_groups)}'
+        true_groups[gkey] = [name]
+        group_true[gkey] = t
 
-if ref_true_scaled is None:
-    ref_true_scaled = ref_true_orig
-    print("WARNING: All models have same true.npy, using as scaled reference")
+# Find the largest group → this is the DL reference (most models share this pipeline)
+largest_group = max(true_groups, key=lambda g: len(true_groups[g]))
+dl_ref_true = group_true[largest_group]
+dl_ref_models = true_groups[largest_group]
 
-# Classify models
-models_orig = {}   # true matches ref_true_orig
-models_scaled = {} # true matches ref_true_scaled
-models_other = {}  # true matches neither
+print(f"\nDL reference group ({len(dl_ref_models)} models): {dl_ref_models}")
+for gkey, models in true_groups.items():
+    if gkey != largest_group:
+        print(f"  Other group ({len(models)} models): {models}")
 
-for name, data in raw.items():
-    if _true_equal(data['true'], ref_true_orig):
-        models_orig[name] = data
-    elif ref_true_scaled is not None and _true_equal(data['true'], ref_true_scaled):
-        models_scaled[name] = data
-    else:
-        models_other[name] = data
+# Classify each model: does it share the DL reference true?
+models_dl_ref = {n: raw[n] for n in dl_ref_models}
+models_other_true = {n: raw[n] for n in raw if n not in dl_ref_models}
 
-print(f"\nOriginal space models ({len(models_orig)}): {list(models_orig.keys())}")
-print(f"Scaled space models ({len(models_scaled)}): {list(models_scaled.keys())}")
-if models_other:
-    print(f"OTHER true space ({len(models_other)}): {list(models_other.keys())}")
-
-# ── Convert all preds to scaled space ──
+# ── Convert all preds to scaled space (using the website's StandardScaler) ──
 pred_scaled = {}  # name -> array in scaled space
-pred_orig = {}    # name -> array in original space
 
-for name, data in {**models_orig, **models_scaled, **models_other}.items():
+for name, data in raw.items():
     p = data['pred']
-    if name in models_scaled:
-        # Already scaled → use as-is
+    t = data['true']
+    pmin, pmax = p.min(), p.max()
+
+    if name in models_dl_ref:
+        # DL reference models are already in scaled space → use as-is
         pred_scaled[name] = p.copy()
-        # Inverse to get original space (for reference)
-        pi = scaler.inverse_transform(p.reshape(-1, 8)).reshape(p.shape)
-        pi = np.clip(pi, 0, None)
-        pid = pi.copy()
-        pid[:,:,6] = pi[:,:,7]
-        pid[:,:,7] = pi[:,:,6]
-        pred_orig[name] = pid
-    elif name in models_orig:
-        # Original space → need to swap channels then scale
-        pred_orig[name] = p.copy()
-        ps = p.copy()
-        ps[:,:,6] = p[:,:,7]
-        ps[:,:,7] = p[:,:,6]
-        pred_scaled[name] = scaler.transform(ps.reshape(-1, 8)).reshape(p.shape)
     else:
-        # Unknown space — try to detect
-        pmin, pmax = p.min(), p.max()
-        if pmin >= -100 and pmax <= 100:
-            print(f"  {name}: assuming SCALED space (range [{pmin:.1f}, {pmax:.1f}])")
+        # Non-reference models — detect space
+        # Original space models have pred values in raw traffic units (typically 0–100000+)
+        # Scaled space models have pred values roughly in [-50, 500]
+        if pmin >= -500 and pmax <= 500:
+            # Scaled space but different scaler → trust as-is
             pred_scaled[name] = p.copy()
+            print(f"  {name}: scaled space (range [{pmin:.1f}, {pmax:.1f}])")
         else:
-            pred_orig[name] = p.copy()
+            # Original space → swap channels then scale
             ps = p.copy()
             ps[:,:,6] = p[:,:,7]
             ps[:,:,7] = p[:,:,6]
             pred_scaled[name] = scaler.transform(ps.reshape(-1, 8)).reshape(p.shape)
-            print(f"  {name}: assuming ORIGINAL space (range [{pmin:.1f}, {pmax:.1f}])")
+            print(f"  {name}: original space → scaled (range [{pmin:.1f}, {pmax:.1f}])")
 
-# Use scaled true as reference
-true_scaled = ref_true_scaled  # from DL model, shape (n_windows, 24, 8)
+# Use DL reference true as the common ground truth
+true_scaled = dl_ref_true  # shape (n_windows, 24, 8)
 
 # ── Compute overall metrics in scaled space ──
 print(f"\n===== Scaled-space metrics (all windows, all channels) =====")
@@ -169,10 +162,11 @@ for name in sorted(pred_scaled.keys()):
     print(f"{name:<22s} {mse:8.4f} {mae:8.4f} {rmse:8.4f} {bias:+8.4f}")
 
 # ── Select models for the website ──
-# Core 9 models matching the existing website configuration
-# Exclude: Mamba, TimeLLM, XGBoost (known space inconsistency per CLAUDE.md)
-# Exclude: AutoARIMA, Naive, Persistent 24h, Historical Avg (statistical baselines,
-#   use different test data from DL models, making direct comparison misleading)
+# All models in this list share the same StandardScaler + Dataset_Custom data pipeline
+# (The space inconsistency issues for Mamba/TimeLLM/XGBoost were fixed in shared_utils.py)
+# IBM TTM, AutoAR, LinearRegression use a different scaler (run.py functions) —
+#   their pred.npy is in scaled space but with different column ordering/scaler.
+#   They are included in metrics but excluded from prediction curves.
 CORE_MODELS = [
     '★ BaseModel',
     'iTransformer',
@@ -182,7 +176,10 @@ CORE_MODELS = [
     'TimesNet',
     'Autoformer',
     'Transformer',
-    'IBM TTM',
+    'Informer',
+    'LightTS',
+    'TSMixer',
+    'SCINet',
     'XGBoost',
     'Mamba',
     'TimeLLM',
@@ -192,9 +189,9 @@ CORE_MODELS = [
 VALID = []
 for name in CORE_MODELS:
     if name in pred_scaled:
-        # Check that scaled range is reasonable (-10 to 100 is typical for scaled space)
+        # Check that scaled range is reasonable (wider range to handle all valid scaled models)
         p = pred_scaled[name]
-        if p.min() > -100 and p.max() < 200:
+        if p.min() > -500 and p.max() < 500:
             VALID.append(name)
         else:
             print(f"  EXCLUDING {name}: scaled range [{p.min():.1f}, {p.max():.1f}] unreasonable")
@@ -207,18 +204,26 @@ for n in VALID:
     print(f"  {n:<22s}  MAE={m.get('mae', 0):.4f}σ  RMSE={m.get('rmse', 0):.4f}σ")
 
 # ── Pre-compute own true in scaled space for each model ──
+# DL reference models share the same true; others have different true
 own_true_scaled = {}
 for name in VALID:
-    if name in models_scaled:
-        own_true_scaled[name] = true_scaled
+    if name in models_dl_ref:
+        own_true_scaled[name] = true_scaled  # DL reference true
     else:
+        # Non-DL-ref model — convert its own true to scaled space
         orig_data = raw.get(name)
         if orig_data is not None:
             t = orig_data['true'].copy()
-            t_swapped = t.copy()
-            t_swapped[:,:,6] = t[:,:,7]
-            t_swapped[:,:,7] = t[:,:,6]
-            own_true_scaled[name] = scaler.transform(t_swapped.reshape(-1,8)).reshape(t.shape)
+            tmin, tmax = t.min(), t.max()
+            if tmin >= -500 and tmax <= 500:
+                # Already in scaled space (different scaler)
+                own_true_scaled[name] = t
+            else:
+                # Original space — swap channels then scale
+                t_swapped = t.copy()
+                t_swapped[:,:,6] = t[:,:,7]
+                t_swapped[:,:,7] = t[:,:,6]
+                own_true_scaled[name] = scaler.transform(t_swapped.reshape(-1,8)).reshape(t.shape)
         else:
             own_true_scaled[name] = true_scaled
 
@@ -290,13 +295,11 @@ curves_data = {
 
 for name in VALID:
     ps = pred_scaled[name]  # (n_w, 24, 8)
-    # Only BaseModel gets its own truth (different test data from DL models)
-    # All other models use common DL reference truth
-    is_basemodel = 'BaseModel' in name
-    if is_basemodel:
-        ts_for_chart = own_true_scaled.get(name, true_scaled)
+    is_dl_ref = name in models_dl_ref
+    if is_dl_ref:
+        ts_for_chart = true_scaled  # DL reference truth
     else:
-        ts_for_chart = true_scaled  # common DL reference
+        ts_for_chart = own_true_scaled.get(name, true_scaled)  # model's own truth
     ts_own = own_true_scaled.get(name, true_scaled)
 
     model_data = {}
@@ -311,7 +314,7 @@ for name in VALID:
 
     ch_mae_chart = float(np.abs(ps[REPRESENTATIVE_WINDOW] - ts_for_chart[REPRESENTATIVE_WINDOW]).mean())
     ch_mae_own = float(np.abs(ps[REPRESENTATIVE_WINDOW] - ts_own[REPRESENTATIVE_WINDOW]).mean())
-    truth_label = "common ref" if name in models_scaled else "own truth"
+    truth_label = "DL ref" if is_dl_ref else "own truth"
     print(f"  {name:<22s}  MAE ({truth_label})={ch_mae_chart:.4f}σ  MAE (own true)={ch_mae_own:.4f}σ")
 
 js = f"export default {json.dumps(curves_data, ensure_ascii=False)};\n"
