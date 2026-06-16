@@ -107,7 +107,7 @@ export default function CurvesPage() {
     <div className="page-enter">
       <div className="card p-5 mt-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div><h3 className="text-sm font-semibold tracking-tight">24h 预测曲线对比</h3><p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">Window #{predictionCurves.window} · 真实数据 · 点击模型名称显隐曲线</p></div>
+          <div><h3 className="text-sm font-semibold tracking-tight">24h 预测曲线对比 <span style={{color:'#16A34A',fontSize:'0.7rem',fontWeight:700}}>【标准化空间 σ】</span></h3><p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">Window #{predictionCurves.window} · 标准化空间对比 · 点击模型名称显隐曲线</p></div>
           <div className="flex items-center gap-2">
             <span className="text-[0.65rem] text-[#A1A1AA]">通道:</span>
             <select value={channelIdx} onChange={(e) => setChannelIdx(Number(e.target.value))} className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer focus:outline-none focus:border-[#6152F2] transition-colors">
