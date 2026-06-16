@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import { MODELS } from '../data/models';
-import { MODEL_COLORS_6, getPalette } from '../data/palette';
+import { MODEL_COLORS_8, getPalette } from '../data/palette';
 import hourlyMAE from '../data/hourly_mae.js';
 import errorDist from '../data/error_dist.js';
 
@@ -18,7 +18,7 @@ function HourlyMAEChart() {
     datasets: MAE_MODELS.map((name, i) => ({
       label: name,
       data: hourlyMAE.models[name],
-      borderColor: MODEL_COLORS_6[i],
+      borderColor: MODEL_COLORS_8[i],
       backgroundColor: 'transparent',
       borderWidth: name.includes('BaseModel') ? 2.5 : 1.5,
       borderDash: name.includes('BaseModel') ? [] : [3, 2],
@@ -31,7 +31,7 @@ function HourlyMAEChart() {
     plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, padding: 12, font: { size: 9 }, color: '#52525B' } } },
     scales: {
       x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA' } },
-      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA' }, title: { display: true, text: 'MAE (ERAB Traffic)', color: '#A1A1AA' } },
+      y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA' }, title: { display: true, text: 'MAE (标准化空间 σ)', color: '#A1A1AA' } },
     },
   };
   return <div className="chart-box"><Line data={data} options={options} /></div>;
@@ -43,8 +43,8 @@ function ErrorDistChart() {
     datasets: DIST_MODELS.map((name, i) => ({
       label: name,
       data: errorDist.models[name].density,
-      borderColor: MODEL_COLORS_6[i],
-      backgroundColor: MODEL_COLORS_6[i] + '12',
+      borderColor: MODEL_COLORS_8[i],
+      backgroundColor: MODEL_COLORS_8[i] + '12',
       borderWidth: name.includes('BaseModel') ? 2.2 : 1.2,
       fill: false, tension: 0.3, pointRadius: 0,
     })),
@@ -89,8 +89,8 @@ export default function ErrorsPage() {
   return (
     <div className="page-enter">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-        <div className="card p-5"><h3 className="text-sm font-semibold tracking-tight mb-0.5">逐小时 MAE 累积增长</h3><p className="text-[0.65rem] text-[#A1A1AA] mb-3">真实 ERAB流量通道 · 所有窗口平均 · Top 6 模型对比</p><HourlyMAEChart /></div>
-        <div className="card p-5"><h3 className="text-sm font-semibold tracking-tight mb-0.5">预测误差概率密度</h3><p className="text-[0.65rem] text-[#A1A1AA] mb-3">高斯核密度估计 · 基于真实误差分布</p><ErrorDistChart /></div>
+        <div className="card p-5"><h3 className="text-sm font-semibold tracking-tight mb-0.5">逐小时 MAE 累积增长</h3><p className="text-[0.65rem] text-[#A1A1AA] mb-3">总流量通道 · 标准化空间 σ 单位 · Top 9 模型对比</p><HourlyMAEChart /></div>
+        <div className="card p-5"><h3 className="text-sm font-semibold tracking-tight mb-0.5">预测误差概率密度</h3><p className="text-[0.65rem] text-[#A1A1AA] mb-3">高斯核密度估计 · 标准化空间 · 基于真实误差分布</p><ErrorDistChart /></div>
       </div>
       <div className="card p-5 mt-4"><h3 className="text-sm font-semibold tracking-tight mb-0.5">性能指标三合一 · MSE / RMSE / MAE</h3><p className="text-[0.65rem] text-[#A1A1AA] mb-3">Top 15 模型按 MSE 升序 · 悬停查看精确数值</p><PerfBarsChart /></div>
     </div>
