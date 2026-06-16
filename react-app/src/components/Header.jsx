@@ -1,3 +1,5 @@
+import { MODELS } from '../data/models';
+
 const TABS = [
   { id: 'overview', label: '首页' },
   { id: 'curves', label: '预测曲线' },
@@ -24,7 +26,7 @@ export default function Header({ activeTab, onTabChange }) {
           ))}
         </nav>
         <div className="hidden lg:flex items-center gap-2 text-xs text-[#A1A1AA]">
-          <span className="accent-dot" style={{ background: '#22C55E' }} /> 26 Models
+          <span className="accent-dot" style={{ background: '#22C55E' }} /> {MODELS.length} Models
         </div>
       </div>
     </header>

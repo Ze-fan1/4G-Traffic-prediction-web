@@ -184,7 +184,7 @@ export default function CurvesPage() {
         <div className="text-xs text-[#52525B] leading-relaxed space-y-1.5">
           <p><strong>黑色实线</strong> = 测试集真实值（标准化空间，单位：σ），来源于 4G 基站 RAN 侧实测数据，Window #{predictionCurves.window}</p>
           <p><strong>标准化空间（σ）解读：</strong>0 表示等于历史均值水平，+2 表示高于均值 2 个标准差（流量高峰），−1 表示低于均值 1 个标准差（流量低谷）。所有模型在相同的 StandardScaler（拟合于训练集）下进行标准化，确保预测值在同一尺度上可直接对比。</p>
-          <p><strong>代表性窗口选择：</strong>在全部 {predictionCurves.n_windows || 5378} 个滑动窗口中，选取与整体 MAE 排名秩相关系数最高的窗口（corr≈0.97）。这意味着该窗口的模型优劣排序与全局平均高度一致，能够公平地代表模型的典型表现，而非选取某个对特定模型有利或不利的极端窗口。</p>
+          <p><strong>代表性窗口选择：</strong>在全部 {predictionCurves.n_windows || 5378} 个滑动窗口中，通过秩相关分析（0.8×Spearman秩相关 + 0.2×方差多样性）选取最优代表窗口（corr≈0.95）。该窗口的模型优劣排序与全局平均高度一致，能够公平地代表模型的典型表现，而非选取某个对特定模型有利或不利的极端窗口。</p>
           <p className="mt-2"><strong>公平基准测试平台：</strong>所有模型共享相同的标准化数据管道——相同的 StandardScaler、相同的训练/测试集划分、相同的 24→24 滑动窗口协议。这是一个面向 4G 流量预测任务的标准化模型 benchmark，而非各模型单独调优后的非公平对比。</p>
           <p className="text-[#A1A1AA] mt-1">💡 使用上方通道下拉菜单切换不同 KPI 指标的预测表现。BaseModel 以实线标注，其余模型以虚线区分。曲线密集时可使用"全选/取消全选"按钮快速切换。</p>
         </div>

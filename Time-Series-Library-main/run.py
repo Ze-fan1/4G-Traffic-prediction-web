@@ -24,6 +24,8 @@ PYTHON_EXE = sys.executable  # 当前 Python (ETP-exp1)
 sys.path.insert(0, ROOT)
 # 注意: 不插入 MODELS_DIR 到 sys.path，因为其 utils.py 会覆盖项目的 utils/ 包
 
+from shared_scaler import get_shared_scaler, prepare_dataframe, get_feature_order, scale_dataframe
+
 from sklearn.preprocessing import StandardScaler
 
 
@@ -99,30 +101,31 @@ def print_menu():
 def run_simple_baselines(model_names=None):
     from utils.metrics import calc_custom_acc
 
+    # Use the SHARED scaler — same as Dataset_Custom / generate_web_data.py
+    scaler = get_shared_scaler()
+    feature_order = get_feature_order()
+    num_channels = len(feature_order)
+    print(f'特征列 ({num_channels}): {feature_order}')
+
     train_fp = os.path.join(DATA_DIR, 'df_4g_train_100.parquet')
     test_fp = os.path.join(DATA_DIR, 'df_4g_test_100.parquet')
-    drop_cols = ['date', 'ID编号', '厂商', '频段', '场景']
-
-    df_train = pd.read_parquet(train_fp)
     df_test = pd.read_parquet(test_fp)
-    num_cols = [c for c in df_test.columns if c not in drop_cols]
-    print(f'特征列 ({len(num_cols)}): {num_cols}')
-
-    scaler = StandardScaler()
-    scaler.fit(df_train[num_cols].values)
-    test_scaled = scaler.transform(df_test[num_cols].values)
+    df_test = prepare_dataframe(df_test)
+    test_scaled = scale_dataframe(df_test, scaler)
 
     seq_len, pred_len, step = 24, 24, 3
     indices = list(range(0, len(test_scaled) - seq_len - pred_len + 1, step))
     print(f'测试窗口: {len(indices)}')
 
     def evaluate(preds_3d, trues_3d, model_name, save_dir):
+        """Compute metrics and save in SCALED space (matching DL convention)."""
         os.makedirs(save_dir, exist_ok=True)
-        TA = trues_3d.reshape(-1, len(num_cols))
-        PA = preds_3d.reshape(-1, len(num_cols))
+        TA = trues_3d.reshape(-1, num_channels)
+        PA = preds_3d.reshape(-1, num_channels)
         mse = np.mean((TA - PA) ** 2)
         mae = np.mean(np.abs(TA - PA))
         rmse = np.sqrt(mse)
+        # Compute original-space metrics via inverse_transform
         TA_inv = scaler.inverse_transform(TA)
         PA_inv = scaler.inverse_transform(PA)
         mask = TA_inv > 1e-5
@@ -131,8 +134,9 @@ def run_simple_baselines(model_names=None):
         preds_inv_3d = PA_inv.reshape(preds_3d.shape)
         trues_inv_3d = TA_inv.reshape(trues_3d.shape)
         avg_acc = calc_custom_acc(preds_inv_3d, trues_inv_3d)
-        np.save(os.path.join(save_dir, 'pred.npy'), preds_inv_3d)
-        np.save(os.path.join(save_dir, 'true.npy'), trues_inv_3d)
+        # Save SCALED space (matching DL model convention)
+        np.save(os.path.join(save_dir, 'pred.npy'), preds_3d.astype(np.float64))
+        np.save(os.path.join(save_dir, 'true.npy'), trues_3d.astype(np.float64))
         result_str = f'MSE:{mse:.4f}, MAE:{mae:.4f}, RMSE:{rmse:.4f}, MAPE:{mape:.4f}, MSPE:{mspe:.4f}, Custom_ACC:{avg_acc:.4f}'
         print(f'  [OK] {model_name}: {result_str}')
         with open(RESULT_FILE, 'a') as f:
@@ -144,8 +148,8 @@ def run_simple_baselines(model_names=None):
 
     if 'Naive' in to_run:
         print('\n--- Naive (Repeat Last Value) ---')
-        p = np.zeros((len(indices), pred_len, len(num_cols)))
-        t = np.zeros((len(indices), pred_len, len(num_cols)))
+        p = np.zeros((len(indices), pred_len, num_channels))
+        t = np.zeros((len(indices), pred_len, num_channels))
         for idx, i in enumerate(indices):
             p[idx] = np.tile(test_scaled[i + seq_len - 1], (pred_len, 1))
             t[idx] = test_scaled[i + seq_len : i + seq_len + pred_len]
@@ -153,8 +157,8 @@ def run_simple_baselines(model_names=None):
 
     if 'Persistent_24h' in to_run:
         print('\n--- Persistent_24h (Repeat Last 24h) ---')
-        p = np.zeros((len(indices), pred_len, len(num_cols)))
-        t = np.zeros((len(indices), pred_len, len(num_cols)))
+        p = np.zeros((len(indices), pred_len, num_channels))
+        t = np.zeros((len(indices), pred_len, num_channels))
         for idx, i in enumerate(indices):
             p[idx] = test_scaled[i : i + seq_len][-pred_len:]
             t[idx] = test_scaled[i + seq_len : i + seq_len + pred_len]
@@ -163,17 +167,23 @@ def run_simple_baselines(model_names=None):
     if 'Historical_Average' in to_run:
         print('\n--- Historical_Average (Hourly Mean) ---')
         df_train_h = pd.read_parquet(train_fp)
-        df_test_h = pd.read_parquet(test_fp)
-        num_cols_h = [c for c in df_test_h.columns if c not in drop_cols]
-        df_train_h['hour'] = pd.to_datetime(df_train_h['date']).dt.hour
-        hourly_mean = df_train_h.groupby('hour')[num_cols_h].mean().values
-        df_test_h['hour'] = pd.to_datetime(df_test_h['date']).dt.hour
-        test_hours = df_test_h['hour'].values
-        p = np.zeros((len(indices), pred_len, len(num_cols_h)))
-        t = np.zeros((len(indices), pred_len, len(num_cols_h)))
+        df_train_h = prepare_dataframe(df_train_h)
+        train_scaled_full = scale_dataframe(df_train_h, scaler)
+        df_train_raw = pd.read_parquet(train_fp)
+        df_train_raw['hour'] = pd.to_datetime(df_train_raw['date']).dt.hour
+        # Compute hourly mean in scaled space
+        hourly_mean_scaled = np.array([
+            train_scaled_full[df_train_raw['hour'].values == h].mean(axis=0)
+            for h in range(24)
+        ])
+        df_test_raw = pd.read_parquet(test_fp)
+        df_test_raw['hour'] = pd.to_datetime(df_test_raw['date']).dt.hour
+        test_hours = df_test_raw['hour'].values
+        p = np.zeros((len(indices), pred_len, num_channels))
+        t = np.zeros((len(indices), pred_len, num_channels))
         for idx, i in enumerate(indices):
             future_hours = test_hours[i + seq_len : i + seq_len + pred_len]
-            p[idx] = scaler.transform(np.array([hourly_mean[h] for h in future_hours]))
+            p[idx] = np.array([hourly_mean_scaled[h] for h in future_hours])
             t[idx] = test_scaled[i + seq_len : i + seq_len + pred_len]
         results['Historical_Average'] = evaluate(p, t, 'Historical_Average_4G', 'results/HistoricalAverage_4G')
 
@@ -190,14 +200,15 @@ def run_traditional_single(model_name):
     from statsforecast.models import AutoARIMA
     from statsmodels.tsa.ar_model import ar_select_order, AutoReg
 
+    # Use the SHARED scaler — same as Dataset_Custom / generate_web_data.py
+    scaler = get_shared_scaler()
+    num_channels = 8
+
     train_fp = os.path.join(DATA_DIR, 'df_4g_train_100.parquet')
     test_fp = os.path.join(DATA_DIR, 'df_4g_test_100.parquet')
-    df_train = pd.read_parquet(train_fp)
     df_test = pd.read_parquet(test_fp)
-
-    feature_cols = [c for c in df_train.columns if c not in ['ID编号', '厂商', '频段', '场景', 'date']]
-    scaler = StandardScaler().fit(df_train[feature_cols].values)
-    test_scaled = scaler.transform(df_test[feature_cols].values)
+    df_test = prepare_dataframe(df_test)
+    test_scaled = scale_dataframe(df_test, scaler)
 
     seq_len, pred_len, step = 24, 24, 3
     indices = list(range(0, len(test_scaled) - seq_len - pred_len + 1, step))
@@ -242,7 +253,7 @@ def run_traditional_single(model_name):
                 sf = StatsForecast(models=[AutoARIMA(season_length=1)], freq='h', n_jobs=1)
                 sf_df = pd.concat([
                     pd.DataFrame({'unique_id': f'c{col}',
-                                  'ds': pd.date_range('2020-01-01', periods=seq_len, freq='H'),
+                                  'ds': pd.date_range('2020-01-01', periods=seq_len, freq='h'),
                                   'y': X[:, col]})
                     for col in range(X.shape[1])
                 ])
@@ -299,8 +310,11 @@ def run_traditional_single(model_name):
     save_dir = f'results/{model_name}_4G'
     os.makedirs(save_dir, exist_ok=True)
     # Save SCALED space (matching DL model convention for generate_web_data.py)
-    np.save(f'{save_dir}/pred.npy', preds_arr.reshape(-1, pred_len, preds[0].shape[1]))
-    np.save(f'{save_dir}/true.npy', trues_arr.reshape(-1, pred_len, preds[0].shape[1]))
+    preds_3d = preds_arr.reshape(-1, pred_len, num_channels).astype(np.float64)
+    trues_3d = trues_arr.reshape(-1, pred_len, num_channels).astype(np.float64)
+    np.save(f'{save_dir}/pred.npy', preds_3d)
+    np.save(f'{save_dir}/true.npy', trues_3d)
+    print(f'  保存: pred={preds_3d.shape} ({preds_3d.dtype}), true={trues_3d.shape} ({trues_3d.dtype})')
 
     return mse, mae, rmse, mape, mspe, acc
 
@@ -494,15 +508,15 @@ def run_ttm():
 
     from utils.metrics import calc_custom_acc
 
+    # Use the SHARED scaler — same as Dataset_Custom / generate_web_data.py
+    scaler = get_shared_scaler()
+    num_channels = 8
+
     train_fp = os.path.join(DATA_DIR, 'df_4g_train_100.parquet')
     test_fp = os.path.join(DATA_DIR, 'df_4g_test_100.parquet')
-    df_train = pd.read_parquet(train_fp)
     df_test = pd.read_parquet(test_fp)
-    feature_cols = [c for c in df_train.columns if c not in ['ID编号', '厂商', '频段', '场景', 'date']]
-    num_channels = len(feature_cols)
-
-    scaler = StandardScaler().fit(df_train[feature_cols].values)
-    test_scaled = scaler.transform(df_test[feature_cols].values)
+    df_test = prepare_dataframe(df_test)
+    test_scaled = scale_dataframe(df_test, scaler)
 
     seq_len, pred_len, step = 24, 24, 3
     indices = list(range(0, len(test_scaled) - seq_len - pred_len + 1, step))
@@ -537,8 +551,8 @@ def run_ttm():
                 p = outputs[0].squeeze(0).cpu().numpy()
             preds_list.append(p[:pred_len, :])
 
-    preds_arr = np.array(preds_list).reshape(-1, num_channels)
-    trues_arr = np.array(trues_list).reshape(-1, num_channels)
+    preds_arr = np.array(preds_list).reshape(-1, num_channels).astype(np.float64)
+    trues_arr = np.array(trues_list).reshape(-1, num_channels).astype(np.float64)
     mse = np.mean((trues_arr - preds_arr) ** 2)
     mae = np.mean(np.abs(trues_arr - preds_arr))
     rmse = np.sqrt(mse)
@@ -562,9 +576,12 @@ def run_ttm():
 
     save_dir = f'results/{setting}'
     os.makedirs(save_dir, exist_ok=True)
-    # Save SCALED space (matching DL model convention for generate_web_data.py)
-    np.save(f'{save_dir}/pred.npy', preds_arr.reshape(-1, pred_len, num_channels))
-    np.save(f'{save_dir}/true.npy', trues_arr.reshape(-1, pred_len, num_channels))
+    # Save SCALED space with float64 (matching DL model convention)
+    preds_3d = preds_arr.reshape(-1, pred_len, num_channels)
+    trues_3d = trues_arr.reshape(-1, pred_len, num_channels)
+    np.save(f'{save_dir}/pred.npy', preds_3d)
+    np.save(f'{save_dir}/true.npy', trues_3d)
+    print(f'  保存: pred={preds_3d.shape} ({preds_3d.dtype}), true={trues_3d.shape} ({trues_3d.dtype})')
     print(f'  [OK] TTM 完成！')
 
 

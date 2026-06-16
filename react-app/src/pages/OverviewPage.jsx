@@ -24,7 +24,7 @@ export default function OverviewPage() {
       <div className="relative mt-5 mb-6 text-center overflow-hidden py-8">
         <h1 className="welcome-blur" aria-hidden="true">4G Traffic Prediction</h1>
         <p className="text-sm text-[#A1A1AA] mt-2 tracking-wide" style={{ animation: 'fadeIn 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) both' }}>
-          26 模型 · 8 通道多变量输入 · 24h 滚动预测基准平台
+          {MODELS.length} 模型 · 8 通道多变量输入 · 24h 滚动预测基准平台
         </p>
       </div>
 

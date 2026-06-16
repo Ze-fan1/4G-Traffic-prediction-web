@@ -64,8 +64,8 @@ body::before {
   transition: filter 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1);
 }
 .shape-blur:hover {
-  filter: blur(0.5px) brightness(1.02);
   transform: scale(1.006);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04), 0 0 16px rgba(97,82,242,0.06);
 }
 
 /* 表格行 */
@@ -73,61 +73,88 @@ body::before {
   transition: filter 0.35s ease, background 0.15s;
 }
 .dt tbody tr:hover {
-  filter: blur(0.35px) brightness(1.015);
+  background: rgba(97,82,242,0.03);
 }
 
 /* 表格单元格 */
 .dt td {
-  transition: filter 0.3s ease;
+  transition: background 0.15s;
 }
 .dt tbody tr:hover td {
-  filter: blur(0.2px);
+  background: rgba(97,82,242,0.02);
 }
 
 /* Chip / 标签 */
 .chip {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem;
+  font-weight: 500; padding: 4px 13px; border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.07); color: #52525B; cursor: pointer;
+  background: transparent;
   transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
 }
-.chip:hover {
-  filter: blur(0.25px) brightness(1.03);
-  transform: translateY(-1px);
-}
+.chip:hover { border-color: rgba(0,0,0,0.14); color: #18181B; transform: translateY(-1px); }
+.chip.active { background: #18181B; color: #FFF; border-color: #18181B; }
 
 /* 输入框 */
 input[type="text"] {
-  transition: filter 0.3s ease, border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 input[type="text"]:focus {
-  filter: blur(0.2px) brightness(1.02);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(97,82,242,0.08);
 }
 
 /* select 下拉框 */
 select {
-  transition: filter 0.3s ease;
+  transition: border-color 0.2s;
 }
 select:hover {
-  filter: blur(0.2px) brightness(1.02);
+  border-color: rgba(97,82,242,0.3);
 }
 
 /* 排名列表行 */
 #acc-ranking-bars > div, #rank-list > div {
-  transition: filter 0.35s ease, background 0.15s;
+  transition: transform 0.2s, background 0.15s;
 }
 #acc-ranking-bars > div:hover, #rank-list > div:hover {
-  filter: blur(0.3px) brightness(1.015);
+  transform: scale(1.01);
+  background: rgba(97,82,242,0.03);
 }
 
-/* ═══ 导航标签统一悬浮 ═══ */
-nav .tab-btn {
-  transition: filter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-              color 0.3s ease, background 0.3s ease,
-              box-shadow 0.3s ease !important;
+/* ═══ 标签按钮 ═══ */
+nav .tab-btn, .tab-btn {
+  font-size: 0.8rem; font-weight: 500; color: #71717A; padding: 7px 16px;
+  border-radius: 10px; cursor: pointer;
+  white-space: nowrap; letter-spacing: -0.01em; background: transparent; border: none;
+  position: relative;
+  transition: color 0.3s ease, background 0.3s ease,
+              box-shadow 0.3s ease;
 }
-nav .tab-btn:hover {
-  filter: blur(0.3px) brightness(1.04);
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.tab-btn:hover { color: #3F3F46; background: rgba(0,0,0,0.03); }
+.tab-btn:hover::after { width: 40%; }
+.tab-btn.active { color: #18181B; background: #FFF; box-shadow: 0 0 0 1px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04); }
+.tab-btn.active::after { width: 60%; }
 
-/* ═══ 欢迎文字（浅浅模糊版） ═══ */
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(90deg,#F0F0F0 25%,#E6E6E6 50%,#F0F0F0 75%);
+  background-size: 200% 100%; animation: shimmer 2s ease-in-out infinite; border-radius: 8px;
+}
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.shimmer-overlay {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background: linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.5) 50%,transparent 65%);
+  background-size: 200% 100%; animation: shimmer 1.2s ease-in-out; border-radius: inherit;
+}
 .welcome-blur {
   font-size: clamp(2rem, 5vw, 4rem);
   font-weight: 800;
@@ -168,54 +195,6 @@ nav .tab-btn:hover {
   0% { opacity: 0.4; left: 3%; right: 3%; }
   100% { opacity: 0.8; left: 15%; right: 15%; }
 }
-
-/* 标签按钮 — 粘稠过渡 */
-.tab-btn {
-  position: relative;
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.tab-btn::after {
-  content: '';
-  position: absolute;
-  bottom: 2px; left: 50%; transform: translateX(-50%);
-  width: 0; height: 2px;
-  border-radius: 2px;
-  background: var(--accent);
-  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.tab-btn:hover::after { width: 40%; }
-.tab-btn.active::after { width: 60%; }
-
-/* Skeleton */
-.skeleton {
-  background: linear-gradient(90deg,#F0F0F0 25%,#E6E6E6 50%,#F0F0F0 75%);
-  background-size: 200% 100%; animation: shimmer 2s ease-in-out infinite; border-radius: 8px;
-}
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-.shimmer-overlay {
-  position: absolute; inset: 0; z-index: 5; pointer-events: none;
-  background: linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.5) 50%,transparent 65%);
-  background-size: 200% 100%; animation: shimmer 1.2s ease-in-out; border-radius: inherit;
-}
-
-/* Tabs */
-.tab-btn {
-  font-size: 0.8rem; font-weight: 500; color: #71717A; padding: 7px 16px;
-  border-radius: 10px; cursor: pointer;
-  white-space: nowrap; letter-spacing: -0.01em; background: transparent; border: none;
-}
-.tab-btn:hover { color: #3F3F46; background: rgba(0,0,0,0.03); }
-.tab-btn.active { color: #18181B; background: #FFF; box-shadow: 0 0 0 1px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04); }
-
-/* Chips */
-.chip {
-  display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem;
-  font-weight: 500; padding: 4px 13px; border-radius: 999px;
-  border: 1px solid rgba(0,0,0,0.07); color: #52525B; cursor: pointer;
-  background: transparent;
-}
-.chip:hover { border-color: rgba(0,0,0,0.14); color: #18181B; }
-.chip.active { background: #18181B; color: #FFF; border-color: #18181B; }
 
 /* Table */
 .dt th {

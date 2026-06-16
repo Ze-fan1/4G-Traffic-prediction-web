@@ -1,9 +1,9 @@
 export const MODELS = [
   { cat: 'Statistical', model: 'Naive', mse: 3.2567, mae: 0.6672, rmse: 1.8046, mape: 218.28, acc: 0.3285 },
   { cat: 'Statistical', model: 'Persistent 24h', mse: 1.9622, mae: 0.4930, rmse: 1.4008, mape: 55.70, acc: 0.4477 },
-  { cat: 'Statistical', model: 'Historical Avg', mse: 2.7342, mae: 0.7216, rmse: 1.6536, mape: 124.36, acc: 0.3469 },
+  { cat: 'Statistical', model: 'Historical Avg', mse: 2.7344, mae: 0.7216, rmse: 1.6536, mape: 124.36, acc: 0.3469 },
   { cat: 'Statistical', model: 'AutoARIMA', mse: 3.2567, mae: 0.6672, rmse: 1.8046, mape: 218.28, acc: 0.3285 },
-  { cat: 'Statistical', model: 'AutoAR', mse: 3.0912, mae: 0.6259, rmse: 1.7582, mape: 221.33, acc: 0.4131 },
+  { cat: 'Statistical', model: 'AutoAR', mse: 3.3104, mae: 0.6357, rmse: 1.8195, mape: 221.33, acc: 0.4131 },
   { cat: 'Statistical', model: 'LinearRegression', mse: 4.2247, mae: 0.9138, rmse: 2.0554, mape: 294.99, acc: 0.2077 },
   { cat: 'Tree', model: 'XGBoost', mse: 1.7634, mae: 0.5146, rmse: 1.3279, mape: 113.65, acc: 0.4729 },
   { cat: 'Baseline', model: '★ BaseModel', mse: 1.0615, mae: 0.3468, rmse: 1.0303, mape: 57.06, acc: 0.5901 },

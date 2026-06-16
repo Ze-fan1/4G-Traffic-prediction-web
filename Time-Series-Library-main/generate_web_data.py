@@ -10,27 +10,15 @@ Usage:
 import os, sys, json
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from shared_scaler import get_shared_scaler
 import warnings
 warnings.filterwarnings('ignore')
 
 results_dir = './results'
 output_dir = '../react-app/src/data'
 
-# ── StandardScaler ──
-train_fp = './data_provider/4g_traffic/df_4g_train_100.parquet'
-df_train = pd.read_parquet(train_fp)
-drop_cols = ['ID编号', '厂商', '频段', '场景']
-for col in drop_cols:
-    if col in df_train.columns:
-        df_train = df_train.drop(columns=[col])
-target = '总流量'
-cols = list(df_train.columns)
-cols.remove(target)
-cols.remove('date')
-df_train = df_train[['date'] + cols + [target]]
-train_data = df_train[df_train.columns[1:]].values
-scaler = StandardScaler().fit(train_data)
+# ── StandardScaler (shared with run.py / Dataset_Custom) ──
+scaler = get_shared_scaler()
 
 # ── Model discovery ──
 model_info = {}  # folder -> cleaned name
@@ -162,11 +150,11 @@ for name in sorted(pred_scaled.keys()):
     print(f"{name:<22s} {mse:8.4f} {mae:8.4f} {rmse:8.4f} {bias:+8.4f}")
 
 # ── Select models for the website ──
-# All models in this list share the same StandardScaler + Dataset_Custom data pipeline
-# (The space inconsistency issues for Mamba/TimeLLM/XGBoost were fixed in shared_utils.py)
-# IBM TTM, AutoAR, LinearRegression use a different scaler (run.py functions) —
-#   their pred.npy is in scaled space but with different column ordering/scaler.
-#   They are included in metrics but excluded from prediction curves.
+# All models in this list now share the same StandardScaler + column ordering
+# (v5: AutoAR/LinearRegression/IBM TTM fixed to use shared_scaler pipeline)
+# Naive/Persistent_24h/Historical_Average are simple baselines — kept in metrics table only
+# AutoARIMA — same metrics as Naive (model failure), excluded from curves
+# Chronos — requires HuggingFace download, not yet run in this environment
 CORE_MODELS = [
     '★ BaseModel',
     'iTransformer',
@@ -183,6 +171,10 @@ CORE_MODELS = [
     'XGBoost',
     'Mamba',
     'TimeLLM',
+    # v5: Fixed scaler column ordering — now share same coordinate space
+    'AutoAR',
+    'LinearRegression',
+    'IBM TTM',
 ]
 
 # Verify all core models have valid scaled predictions
