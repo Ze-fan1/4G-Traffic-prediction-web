@@ -65,3 +65,4 @@ __pycache__/
 # ── Local config (keep example only) ──
 *.local.*
 !*.example.*
+screenshot-curves.png
