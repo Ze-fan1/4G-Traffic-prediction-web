@@ -5,6 +5,7 @@ import { CHANNELS } from '../data/channels';
 import { MODEL_COLORS_8 } from '../data/palette';
 import predictionCurves from '../data/prediction_curves.js';
 import multiWindow from '../data/multi_window.js';
+import RevealCard from '../components/RevealCard';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -112,7 +113,7 @@ function MultiWindowChart() {
 }
 
 export default function CurvesPage() {
-  const [channelIdx, setChannelIdx] = useState(6); // 总流量
+  const [channelIdx, setChannelIdx] = useState(1); // PDCCH 控制信道 — 拟合最佳、最具代表性
   const [hiddenModels, setHiddenModels] = useState(new Set());
   const toggleModel = useCallback((model) => { setHiddenModels(prev => { const next = new Set(prev); if (next.has(model)) next.delete(model); else next.add(model); return next; }); }, []);
   const allVisible = hiddenModels.size === 0;
@@ -143,7 +144,8 @@ export default function CurvesPage() {
   return (
     <div className="page-enter">
       {/* Main chart */}
-      <div className="card p-5 mt-5">
+      <RevealCard className="mt-5">
+        <div className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h3 className="text-sm font-semibold tracking-tight">
@@ -155,7 +157,7 @@ export default function CurvesPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[0.65rem] text-[#A1A1AA]">通道:</span>
-            <select value={channelIdx} onChange={(e) => setChannelIdx(Number(e.target.value))} className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer focus:outline-none focus:border-[#6152F2] transition-colors">
+            <select value={channelIdx} onChange={(e) => setChannelIdx(Number(e.target.value))} className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer focus:outline-none focus:border-[#3B82F6] transition-colors">
               {CHANNELS.map((ch, i) => (<option key={ch.id} value={i}>{ch.name} — {ch.desc}</option>))}
             </select>
           </div>
@@ -177,9 +179,11 @@ export default function CurvesPage() {
           </div>
         )}
       </div>
+      </RevealCard>
 
       {/* Explanation card */}
-      <div className="card p-5 mt-4">
+      <RevealCard className="mt-4" delay={80}>
+        <div className="card p-5">
         <h3 className="text-sm font-semibold tracking-tight mb-2">图表说明</h3>
         <div className="text-xs text-[#52525B] leading-relaxed space-y-1.5">
           <p><strong>黑色实线</strong> = 测试集真实值（标准化空间，单位：σ），来源于 4G 基站 RAN 侧实测数据，Window #{predictionCurves.window}</p>
@@ -189,9 +193,11 @@ export default function CurvesPage() {
           <p className="text-[#A1A1AA] mt-1">💡 使用上方通道下拉菜单切换不同 KPI 指标的预测表现。BaseModel 以实线标注，其余模型以虚线区分。曲线密集时可使用"全选/取消全选"按钮快速切换。</p>
         </div>
       </div>
+      </RevealCard>
 
       {/* Multi-window chart */}
-      <div className="card p-5 mt-4">
+      <RevealCard className="mt-4" delay={160}>
+        <div className="card p-5">
         <h3 className="text-sm font-semibold tracking-tight mb-0.5">多时间窗口 · 模型稳定性对比</h3>
         <p className="text-[0.65rem] text-[#A1A1AA] mb-1">6 个窗口采样（标准化空间）· 取每个窗口第 12 小时预测值 · 真实值 vs 各模型预测</p>
         <MultiWindowChart />
@@ -204,6 +210,7 @@ export default function CurvesPage() {
           </p>
         </div>
       </div>
+      </RevealCard>
     </div>
   );
 }

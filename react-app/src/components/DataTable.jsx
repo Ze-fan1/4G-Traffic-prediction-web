@@ -36,7 +36,7 @@ export default function DataTable() {
           </div>
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A1A1AA]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input type="text" placeholder="Filter models…" value={search} onChange={(e) => { setSearch(e.target.value); triggerShimmer(); }} className="pl-8 pr-3 py-2 text-xs rounded-xl border bg-[#FAFAFA] w-52 focus:outline-none focus:border-[#6152F2] transition-all" style={{ fontSize: '0.72rem', borderColor: 'rgba(0,0,0,0.05)' }} />
+            <input type="text" placeholder="搜索模型…" value={search} onChange={(e) => { setSearch(e.target.value); triggerShimmer(); }} className="pl-8 pr-4 py-2 text-xs rounded-xl border bg-[#FAFAFA] w-60 focus:outline-none focus:border-[#3B82F6] transition-all" style={{ fontSize: '0.72rem', borderColor: 'rgba(0,0,0,0.05)' }} />
           </div>
         </div>
       </div>
@@ -48,14 +48,14 @@ export default function DataTable() {
           </thead>
           <tbody>
             {filtered.map(m => { const c = getPalette(m); const isBest = m.model.includes('BaseModel'); return (
-              <tr key={m.model} className={isBest ? 'bg-[#EEECFE]/30' : ''}>
+              <tr key={m.model} className={isBest ? 'bg-[#DBEAFE]/40' : ''}>
                 <td><span className="inline-flex items-center gap-1.5 text-[0.65rem] font-medium px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.text }}><span className="accent-dot" style={{ background: c.border, width: 5, height: 5 }} />{m.cat}</span></td>
-                <td className={`font-medium text-[0.78rem] ${isBest ? 'text-[#6152F2]' : ''}`}>{m.model}</td>
+                <td className={`font-medium text-[0.78rem] ${isBest ? 'text-[#3B82F6]' : ''}`}>{m.model}</td>
                 <td className={`font-mono text-[0.72rem] ${m.mse === bestMSE ? 'text-emerald-600 font-medium' : ''}`}>{m.mse.toFixed(4)}</td>
                 <td className="font-mono text-[0.72rem]">{m.mae.toFixed(4)}</td>
                 <td className="font-mono text-[0.72rem]">{m.rmse.toFixed(4)}</td>
                 <td className={`font-mono text-[0.72rem] ${m.mape > 150 ? 'text-amber-600' : ''}`}>{m.mape.toFixed(2)}</td>
-                <td className={`font-mono text-[0.72rem] font-semibold ${m.acc === bestACC ? 'text-[#6152F2]' : m.acc > 0.5 ? 'text-emerald-600' : ''}`}>{m.acc.toFixed(4)}</td>
+                <td className={`font-mono text-[0.72rem] font-semibold ${m.acc === bestACC ? 'text-[#3B82F6]' : m.acc > 0.5 ? 'text-emerald-600' : ''}`}>{m.acc.toFixed(4)}</td>
               </tr>
             ); })}
             {filtered.length === 0 && <tr><td colSpan="7" className="text-center py-12 text-[#A1A1AA] text-xs">No models match.</td></tr>}

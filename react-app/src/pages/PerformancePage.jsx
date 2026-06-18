@@ -6,6 +6,7 @@ import { Bar, Radar, Scatter } from 'react-chartjs-2';
 import { MODELS, CATS } from '../data/models';
 import { MODEL_COLORS_8, getPalette } from '../data/palette';
 import DataTable from '../components/DataTable';
+import RevealCard from '../components/RevealCard';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, RadialLinearScale, Filler, Tooltip, Legend);
 
@@ -115,13 +116,14 @@ export default function PerformancePage() {
   return (
     <div className="page-enter">
       {/* Data table */}
-      <div className="mt-5">
+      <RevealCard className="mt-5">
         <DataTable />
-      </div>
+      </RevealCard>
 
       {/* ACC Bar + Radar */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <div className="card p-5">
+        <RevealCard delay={80}>
+          <div className="card p-5 h-full">
           <h3 className="text-sm font-semibold tracking-tight mb-0.5">Custom ACC 横向对比</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">所有模型按 ACC 升序排列 · 绿色边框标注 ★ BaseModel</p>
           <ACCBarChart />
@@ -134,8 +136,10 @@ export default function PerformancePage() {
             </p>
           </div>
         </div>
+        </RevealCard>
 
-        <div className="card p-5">
+        <RevealCard delay={140}>
+          <div className="card p-5 h-full">
           <h3 className="text-sm font-semibold tracking-tight mb-0.5">Top 8 多维雷达图</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">五项指标归一化至 [0, 0.9] · 面积越大综合表现越好</p>
           <RadarChart_ />
@@ -148,11 +152,13 @@ export default function PerformancePage() {
             </p>
           </div>
         </div>
+        </RevealCard>
       </div>
 
       {/* Scatter + Category */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <div className="card p-5">
+        <RevealCard delay={200}>
+          <div className="card p-5 h-full">
           <h3 className="text-sm font-semibold tracking-tight mb-0.5">MSE vs ACC 帕累托前沿</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">按模型类别着色 · ★ BaseModel 突出显示 · 悬停查看完整指标</p>
           <ScatterChart_ />
@@ -165,8 +171,10 @@ export default function PerformancePage() {
             </p>
           </div>
         </div>
+        </RevealCard>
 
-        <div className="card p-5">
+        <RevealCard delay={260}>
+          <div className="card p-5 h-full">
           <h3 className="text-sm font-semibold tracking-tight mb-0.5">模型类别 MSE 汇总</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">柱高 = 类别平均 MSE · 误差线示最值范围</p>
           <CategoryBarChart />
@@ -174,11 +182,12 @@ export default function PerformancePage() {
             <p className="text-xs text-[#52525B] leading-relaxed">
               <strong>📊 图表解读：</strong>
               按模型架构范式（Transformer、MLP、CNN、RNN、SSM、LLM 等）汇总平均 MSE，快速判断哪类架构在 4G 流量预测任务上整体最优。
-              柱高越低越好。注意柱内的模型数量不同（如 LLM 类含 3 个 Chronos 变体），柱间对比时应结合样本量判断。
+              柱高越低越好。注意柱内的模型数量不同（如 LLM 类含 4 个 Chronos 变体 + TimeLLM），柱间对比时应结合样本量判断。Chronos2（ACC=0.4903）显著拉低了 LLM 类平均 MSE。
               目前 Baseline（自研融合架构）以最低单模型 MSE 领跑，CNN/Tree 类别整体表现稳健。
             </p>
           </div>
         </div>
+        </RevealCard>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { MODELS } from '../data/models';
 import { MODEL_COLORS_8, getPalette } from '../data/palette';
 import hourlyMAE from '../data/hourly_mae.js';
 import errorDist from '../data/error_dist.js';
+import RevealCard from '../components/RevealCard';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
 
@@ -116,8 +117,9 @@ export default function ErrorsPage() {
     <div className="page-enter">
       {/* Hourly MAE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold tracking-tight mb-0.5">逐小时 MAE 累积增长</h3>
+        <RevealCard className="h-full">
+          <div className="card p-5 h-full">
+            <h3 className="text-sm font-semibold tracking-tight mb-0.5">逐小时 MAE 累积增长</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">总流量通道 · 标准化空间 · 全窗口平均</p>
           <HourlyMAEChart />
           <div className="mt-3 p-3 rounded-xl bg-[#FAFAFA] border border-[rgba(0,0,0,0.03)]">
@@ -129,10 +131,12 @@ export default function ErrorsPage() {
             </p>
           </div>
         </div>
+        </RevealCard>
 
         {/* Error Distribution */}
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold tracking-tight mb-0.5">预测误差概率密度分布</h3>
+        <RevealCard className="h-full" delay={80}>
+          <div className="card p-5 h-full">
+            <h3 className="text-sm font-semibold tracking-tight mb-0.5">预测误差概率密度分布</h3>
           <p className="text-[0.65rem] text-[#A1A1AA] mb-3">高斯核密度估计 · 标准化空间 · 基于全部窗口误差</p>
           <ErrorDistChart />
           <div className="mt-3 p-3 rounded-xl bg-[#FAFAFA] border border-[rgba(0,0,0,0.03)]">
@@ -144,10 +148,12 @@ export default function ErrorsPage() {
             </p>
           </div>
         </div>
+        </RevealCard>
       </div>
 
       {/* Performance Bars */}
-      <div className="card p-5 mt-4">
+      <RevealCard className="mt-4" delay={160}>
+        <div className="card p-5">
         <h3 className="text-sm font-semibold tracking-tight mb-0.5">三项指标综合对比 · MSE / RMSE / MAE</h3>
         <p className="text-[0.65rem] text-[#A1A1AA] mb-3">Top 15 模型按 MSE 升序排列 · 悬停查看精确数值</p>
         <PerfBarsChart />
@@ -160,6 +166,7 @@ export default function ErrorsPage() {
           </p>
         </div>
       </div>
+      </RevealCard>
     </div>
   );
 }

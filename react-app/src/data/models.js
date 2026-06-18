@@ -24,6 +24,7 @@ export const MODELS = [
   { cat: 'LLM', model: 'Chronos-tiny', mse: 2.0939, mae: 0.5140, rmse: 1.4470, mape: 120.59, acc: 0.4450 },
   { cat: 'LLM', model: 'Chronos-small', mse: 2.1209, mae: 0.5011, rmse: 1.4563, mape: 98.14, acc: 0.4265 },
   { cat: 'LLM', model: 'Chronos-base', mse: 1.8987, mae: 0.4939, rmse: 1.3779, mape: 43.72, acc: 0.4179 },
+  { cat: 'LLM', model: 'Chronos2', mse: 1.4180, mae: 0.4294, rmse: 1.1908, mape: 28.79, acc: 0.4903 },
 ];
 
 export const CATS = [...new Set(MODELS.map(m => m.cat))];

@@ -47,6 +47,7 @@ for folder in sorted(os.listdir(results_dir)):
     elif name.startswith('LightTS_'): name = 'LightTS'
     elif name.startswith('TSMixer_'): name = 'TSMixer'
     elif name.startswith('SCINet_'): name = 'SCINet'
+    elif name.startswith('Chronos2_'): name = 'Chronos2'
     elif name == 'AutoAR_4G': name = 'AutoAR'
     elif name == 'LinearRegression_4G': name = 'LinearRegression'
     model_info[folder] = name
@@ -154,7 +155,8 @@ for name in sorted(pred_scaled.keys()):
 # (v5: AutoAR/LinearRegression/IBM TTM fixed to use shared_scaler pipeline)
 # Naive/Persistent_24h/Historical_Average are simple baselines — kept in metrics table only
 # AutoARIMA — same metrics as Naive (model failure), excluded from curves
-# Chronos — requires HuggingFace download, not yet run in this environment
+# Chronos — requires HuggingFace download, now available via Chronos2Pipeline
+# Chronos2 — Amazon latest zero-shot model, 120M params, multivariate forecasting
 CORE_MODELS = [
     '★ BaseModel',
     'iTransformer',
@@ -175,6 +177,7 @@ CORE_MODELS = [
     'AutoAR',
     'LinearRegression',
     'IBM TTM',
+    'Chronos2',
 ]
 
 # Verify all core models have valid scaled predictions
