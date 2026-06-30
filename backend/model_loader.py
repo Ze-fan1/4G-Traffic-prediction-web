@@ -14,6 +14,9 @@ MODELS_DIR = TSLIB_ROOT / "models"
 sys.path.insert(0, str(TSLIB_ROOT))
 sys.path.insert(0, str(MODELS_DIR))  # utils/ 在 models/utils/ 中
 
+import os as _os
+_os.chdir(str(TSLIB_ROOT))  # exp_basic 使用相对路径 models/ 扫描模型文件
+
 _current_model_name = None
 _current_model = None
 _current_model_info = None
