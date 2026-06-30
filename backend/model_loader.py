@@ -210,12 +210,24 @@ def load(model_name: str):
 
     elif mtype == "xgboost":
         import xgboost as xgb
+        import pickle
         model_path = info.get("model_file")
-        if model_path and Path(model_path).exists():
-            model = xgb.Booster()
-            model.load_model(model_path)
+        # Try pickle first, then xgb native, then fallback
+        if model_path:
+            pkl_path = model_path.replace('.json', '.pkl')
+            if Path(pkl_path).exists():
+                with open(pkl_path, 'rb') as f:
+                    data = pickle.load(f)
+                model = data['models']  # dict of per-channel models
+            elif Path(model_path).exists():
+                model = xgb.Booster()
+                model.load_model(model_path)
+            else:
+                from data_pipeline import load_test_data
+                df_train, _, _, cols = load_test_data()
+                X_train = df_train[cols].values
+                model = _train_xgboost_quick(X_train, cols)
         else:
-            # 如果没有保存的模型文件，则现场训练
             from data_pipeline import load_test_data
             df_train, _, _, cols = load_test_data()
             X_train = df_train[cols].values

@@ -109,8 +109,7 @@ MODEL_REGISTRY = {
         "type": "huggingface",
         "model_id": "ibm-granite/granite-timeseries-ttm-r1",
         "context_len": 512,
-        "tier": 3, "category": "MLP",
-        "tier3_reason": "需 512 步上下文，待修复",
+        "tier": 1, "category": "MLP",
     },
 
     # ═══ CNN ═══

@@ -198,7 +198,7 @@ def _infer_huggingface(model_name: str, X: np.ndarray, pred_len: int) -> np.ndar
             # IBM TTM: 需要 512 上下文
             context_len = info.get("context_len", 512)
             pad_len = context_len - seq_len
-            past = np.pad(X[b], ((pad_len, 0), (0, 0)), mode="constant", constant_values=0)
+            past = np.pad(X[b], ((pad_len, 0), (0, 0)), mode="reflect")  # 反射填充保留波动特征
             past_tensor = torch.tensor(past, dtype=torch.float32).unsqueeze(0).to(device)
 
             with torch.no_grad():
