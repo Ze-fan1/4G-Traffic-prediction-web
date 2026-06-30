@@ -87,7 +87,10 @@ async def demo_quick(model_name: str, body: dict):
         })
 
     channel_idx = body.get("channel_idx", 1)
-    window_idx = body.get("window_idx", 3825)
+    window_idx = body.get("window_idx")
+    if window_idx is None:
+        import random
+        window_idx = random.randint(0, 5377)
 
     # 加载数据
     X, Y, scaler, cols = get_test_window(window_idx, channel_idx)
@@ -167,11 +170,26 @@ async def demo_full(model_name: str, body: dict):
 
     elapsed = time.time() - t0
 
-    preds_arr = np.array(all_preds).reshape(-1, len(cols))
-    trues_arr = np.array(all_trues).reshape(-1, len(cols))
+    all_preds_arr = np.array(all_preds)  # (n_windows, pred_len, n_channels)
+    all_trues_arr = np.array(all_trues)  # (n_windows, pred_len, n_channels)
 
-    preds_inv = scaler.inverse_transform(preds_arr)
-    trues_inv = scaler.inverse_transform(trues_arr)
+    # Element-wise average across all windows → (pred_len, n_channels)
+    avg_pred = np.mean(all_preds_arr, axis=0)
+    avg_truth = np.mean(all_trues_arr, axis=0)
+
+    # Inverse transform
+    avg_pred_inv = scaler.inverse_transform(avg_pred)
+    avg_truth_inv = scaler.inverse_transform(avg_truth)
+
+    # Channel-specific average curves
+    avg_pred_ch = avg_pred_inv[:, channel_idx].tolist()
+    avg_truth_ch = avg_truth_inv[:, channel_idx].tolist()
+
+    # Global metrics (flattened)
+    preds_flat = all_preds_arr.reshape(-1, len(cols))
+    trues_flat = all_trues_arr.reshape(-1, len(cols))
+    preds_inv = scaler.inverse_transform(preds_flat)
+    trues_inv = scaler.inverse_transform(trues_flat)
 
     mse = float(np.mean((trues_inv - preds_inv) ** 2))
     mae = float(np.mean(np.abs(trues_inv - preds_inv)))
@@ -188,6 +206,8 @@ async def demo_full(model_name: str, body: dict):
             "rmse": round(rmse, 4),
             "mape": round(mape, 4),
         },
+        "avg_pred": avg_pred_ch,
+        "avg_truth": avg_truth_ch,
         "n_windows": len(windows),
         "elapsed_s": round(elapsed, 1),
         "device": str(get_device()),
