@@ -90,7 +90,7 @@ export default function UploadPanel({ model, isAvailable }) {
   if (!isAvailable) {
     return (
       <div className="p-4 text-center text-xs text-[#A1A1AA]">
-        🔒 该模型暂不支持自定义预测
+        🔒 该模型暂不支持自定义数据上传
       </div>
     );
   }

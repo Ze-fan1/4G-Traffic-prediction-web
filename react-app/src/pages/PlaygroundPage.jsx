@@ -51,7 +51,7 @@ export default function PlaygroundPage() {
                     : 'bg-[#F5F5F5] text-[#52525B] hover:bg-[#E5E5E5]'
                 }`}
               >
-                📁 自定义预测
+                📁 自定义数据
               </button>
             </div>
 
