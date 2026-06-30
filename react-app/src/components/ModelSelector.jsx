@@ -8,9 +8,11 @@ function getCat(model) {
 
 export default function ModelSelector({ selectedModel, onSelect, modelTiers = {} }) {
   const [search, setSearch] = useState('');
-  const [collapsed, setCollapsed] = useState(
-    Object.fromEntries(CATS.map(c => [c, c !== 'Baseline' && c !== 'Transformer']))
-  );
+  const [collapsed, setCollapsed] = useState(() => {
+    const init = {};
+    CATS.forEach(c => { init[c] = c !== 'Baseline' && c !== 'Transformer'; });
+    return init;
+  });
 
   const toggleCat = (cat) => setCollapsed(prev => ({ ...prev, [cat]: !prev[cat] }));
 
@@ -48,11 +50,18 @@ export default function ModelSelector({ selectedModel, onSelect, modelTiers = {}
             {/* Category header */}
             <button
               onClick={() => toggleCat(cat)}
-              className="w-full flex items-center gap-2 py-1.5 text-left hover:bg-[#FAFAFA] rounded-lg px-1 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2 py-1.5 text-left hover:bg-[#FAFAFA] rounded-lg px-1 transition-colors cursor-pointer select-none"
             >
-              <span className="text-[0.55rem] transition-transform" style={{ display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>
-                ▼
-              </span>
+              <svg
+                className={`w-2.5 h-2.5 transition-transform duration-200 flex-shrink-0 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#A1A1AA"
+                strokeWidth="3"
+                strokeLinecap="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ background: catInfo?.border || '#A1A1AA' }}
