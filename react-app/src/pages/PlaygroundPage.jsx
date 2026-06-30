@@ -41,7 +41,7 @@ export default function PlaygroundPage() {
                     : 'bg-[#F5F5F5] text-[#52525B] hover:bg-[#E5E5E5]'
                 }`}
               >
-                📈 Demo 验证
+                📈 数据验证
               </button>
               <button
                 onClick={() => setActiveSection('upload')}

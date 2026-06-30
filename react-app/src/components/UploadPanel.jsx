@@ -12,6 +12,7 @@ export default function UploadPanel({ model, isAvailable }) {
   const [csvPreview, setCsvPreview] = useState(null);
   const [targetCol, setTargetCol] = useState('');
   const [predLen, setPredLen] = useState(24);
+  const [numChannels, setNumChannels] = useState(0);
   const [result, setResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -55,6 +56,7 @@ export default function UploadPanel({ model, isAvailable }) {
       formData.append('csv_file', csvFile);
       formData.append('target_col', targetCol);
       formData.append('pred_len', String(predLen));
+      formData.append('num_channels', String(numChannels));
 
       const res = await fetch(`${API_BASE}/predict/${encodeURIComponent(model)}`, {
         method: 'POST',
@@ -185,6 +187,19 @@ export default function UploadPanel({ model, isAvailable }) {
             >
               {PRED_LEN_OPTIONS.map(n => (
                 <option key={n} value={n}>{n}h</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#A1A1AA]">通道数:</span>
+            <select
+              value={numChannels}
+              onChange={(e) => setNumChannels(Number(e.target.value))}
+              className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer"
+            >
+              <option value={0}>自动检测</option>
+              {[1, 2, 4, 8, 12, 16].map(n => (
+                <option key={n} value={n}>{n}</option>
               ))}
             </select>
           </div>

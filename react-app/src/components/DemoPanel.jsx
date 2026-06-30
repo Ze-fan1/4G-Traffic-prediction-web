@@ -74,8 +74,8 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
   const chartData = useMemo(() => {
     const datasets = [];
 
-    // Ground truth from preset or full eval
-    if (presetData?.truth) {
+    // Preset ground truth (shown when no live quick result available)
+    if (presetData?.truth && !quickResult?.truth) {
       datasets.push({
         label: '真实值 (预置)',
         data: presetData.truth,
@@ -88,8 +88,8 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       });
     }
 
-    // Preset prediction
-    if (presetData?.pred) {
+    // Preset prediction (shown when no live quick result available)
+    if (presetData?.pred && !quickResult?.pred) {
       datasets.push({
         label: `${model} (预置)`,
         data: presetData.pred,
@@ -103,12 +103,45 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       });
     }
 
-    // Full eval average truth (drawn behind)
-    if (fullResult?.avg_truth) {
+    // Quick verify truth (always shown when available)
+    if (quickResult?.truth) {
+      const w = quickResult.window != null ? quickResult.window : '?';
       datasets.push({
-        label: '真实值 (全窗口均值)',
+        label: `真实值 (窗口 #${w})`,
+        data: quickResult.truth,
+        borderColor: '#EF4444',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [],
+        pointRadius: 0,
+        tension: 0.35,
+        order: 0,
+      });
+    }
+
+    // Quick verify prediction (always shown when available)
+    if (quickResult?.pred) {
+      const w = quickResult.window != null ? quickResult.window : '?';
+      datasets.push({
+        label: `预测值 (窗口 #${w})`,
+        data: quickResult.pred,
+        borderColor: '#22C55E',
+        backgroundColor: '#22C55E20',
+        borderWidth: 2.2,
+        borderDash: [],
+        pointRadius: 0,
+        tension: 0.35,
+        order: 0,
+      });
+    }
+
+    // Full eval average truth
+    if (fullResult?.avg_truth) {
+      const n = fullResult.n_windows || '?';
+      datasets.push({
+        label: `平均真实 (${n}窗口)`,
         data: fullResult.avg_truth,
-        borderColor: '#78716C',
+        borderColor: '#92400E',
         backgroundColor: 'transparent',
         borderWidth: 2,
         borderDash: [4, 4],
@@ -120,8 +153,9 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
 
     // Full eval average prediction
     if (fullResult?.avg_pred) {
+      const n = fullResult.n_windows || '?';
       datasets.push({
-        label: `${model} (全窗口均值)`,
+        label: `平均预测 (${n}窗口)`,
         data: fullResult.avg_pred,
         borderColor: '#F59E0B',
         backgroundColor: '#F59E0B20',
@@ -130,36 +164,6 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         pointRadius: 0,
         tension: 0.35,
         order: 1,
-      });
-    }
-
-    // Quick verify truth (shown when no preset truth available)
-    if (quickResult?.truth && !presetData?.truth) {
-      datasets.push({
-        label: '真实值 (实时窗口)',
-        data: quickResult.truth,
-        borderColor: '#18181B',
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderDash: [3, 3],
-        pointRadius: 0,
-        tension: 0.35,
-        order: 0,
-      });
-    }
-
-    // Live verification prediction (overlaid, solid)
-    if (quickResult?.pred) {
-      datasets.push({
-        label: `${model} (实时)`,
-        data: quickResult.pred,
-        borderColor: '#22C55E',
-        backgroundColor: '#22C55E20',
-        borderWidth: 2.2,
-        borderDash: [],
-        pointRadius: 0,
-        tension: 0.35,
-        order: 0,
       });
     }
 
@@ -284,7 +288,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       {/* Quick result */}
       {quickResult && (
         <div className="p-2 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] text-xs text-[#166534]">
-          ✅ 实时验证完成 (耗时 {quickResult.elapsed_s}s) — MAE = {quickResult.mae}
+          ✅ 随机窗口 #{quickResult.window} 验证完成 (耗时 {quickResult.elapsed_s}s) — MAE = {quickResult.mae}
           {presetData && (
             <span className="ml-2 text-[#A1A1AA]">
               | 预置 MAE = {(

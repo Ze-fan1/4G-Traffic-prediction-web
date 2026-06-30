@@ -16,13 +16,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 
 from model_registry import MODEL_REGISTRY, get_model_info, list_models
-from model_loader import load, unload, get_loaded_model_name, get_device
-from inference_engine import infer
 from data_pipeline import (
-    get_test_window, get_all_test_windows,
+    get_all_test_windows,
     parse_csv, build_windows_from_csv,
     inverse_transform_and_clip, FEATURE_COLS,
 )
+from model_loader import load, unload, get_loaded_model_name, get_device
+from inference_engine import infer
 
 app = FastAPI(title="4G Traffic Playground API", version="0.1.0")
 
@@ -69,7 +69,7 @@ async def api_list_models():
 @app.post("/api/demo/{model_name}/quick")
 async def demo_quick(model_name: str, body: dict):
     """
-    单窗口快速验证
+    单窗口快速验证（返回 σ 空间标准化值）
     Request: {channel_idx: int, window_idx?: int}
     Response: {pred: [24], truth: [24], window: int, mae: float}
     """
@@ -87,13 +87,12 @@ async def demo_quick(model_name: str, body: dict):
         })
 
     channel_idx = body.get("channel_idx", 1)
-    window_idx = body.get("window_idx")
-    if window_idx is None:
-        import random
-        window_idx = random.randint(0, 5377)
 
-    # 加载数据
-    X, Y, scaler, cols = get_test_window(window_idx, channel_idx)
+    # 随机窗口选择（已标准化）
+    windows, scaler, cols = get_all_test_windows()
+    import random
+    window_idx = body.get("window_idx", random.randint(0, len(windows) - 1))
+    X, Y = windows[window_idx]  # X, Y 已在 σ 空间
 
     try:
         t0 = time.time()
@@ -102,20 +101,12 @@ async def demo_quick(model_name: str, body: dict):
     except Exception as e:
         raise HTTPException(500, detail={"error": "inference_failed", "detail": str(e)})
 
-    # 逆标准化
-    X_inv = inverse_transform_and_clip(X[np.newaxis, :, :], scaler, cols)[0]
-    Y_inv = inverse_transform_and_clip(Y[np.newaxis, :, :], scaler, cols)[0]
-    pred_inv = inverse_transform_and_clip(
-        pred[np.newaxis, :, :] if pred.ndim == 2 else pred, scaler, cols
-    )[0]
+    # 直接返回标准化值（σ 空间），不做 inverse_transform
+    if pred.ndim == 3:
+        pred = pred[0]
 
-    # 通道重排（修复 6/7 交换 bug，如果恰好 8 通道）
-    if pred_inv.shape[1] >= 8:
-        pred_inv[:, [6, 7]] = pred_inv[:, [7, 6]]
-        Y_inv[:, [6, 7]] = Y_inv[:, [7, 6]]
-
-    channel_pred = pred_inv[:, channel_idx].tolist()
-    channel_truth = Y_inv[:, channel_idx].tolist()
+    channel_pred = pred[:, channel_idx].tolist()
+    channel_truth = Y[:, channel_idx].tolist()
     mae = float(np.mean(np.abs(np.array(channel_pred) - np.array(channel_truth))))
 
     return {
@@ -136,9 +127,9 @@ async def demo_quick(model_name: str, body: dict):
 @app.post("/api/demo/{model_name}/full")
 async def demo_full(model_name: str, body: dict):
     """
-    全量评估
+    全量评估（返回 σ 空间标准化值）
     Request: {channel_idx: int}
-    Response: {metrics: {mse, mae, rmse, mape}, n_windows: int, elapsed_s: float}
+    Response: {metrics: {mse, mae, rmse}, n_windows: int, elapsed_s: float}
     """
     info = get_model_info(model_name)
     if info is None:
@@ -170,44 +161,29 @@ async def demo_full(model_name: str, body: dict):
 
     elapsed = time.time() - t0
 
-    all_preds_arr = np.array(all_preds)  # (n_windows, pred_len, n_channels)
-    all_trues_arr = np.array(all_trues)  # (n_windows, pred_len, n_channels)
+    preds_arr = np.array(all_preds)  # (n_windows, 24, n_channels)
+    trues_arr = np.array(all_trues)  # (n_windows, 24, n_channels)
 
-    # Element-wise average across all windows → (pred_len, n_channels)
-    avg_pred = np.mean(all_preds_arr, axis=0)
-    avg_truth = np.mean(all_trues_arr, axis=0)
+    # Element-wise average across all windows（σ 空间）
+    avg_pred = preds_arr.mean(axis=0)[:, channel_idx].tolist()  # (24,)
+    avg_truth = trues_arr.mean(axis=0)[:, channel_idx].tolist()  # (24,)
 
-    # Inverse transform
-    avg_pred_inv = scaler.inverse_transform(avg_pred)
-    avg_truth_inv = scaler.inverse_transform(avg_truth)
-
-    # Channel-specific average curves
-    avg_pred_ch = avg_pred_inv[:, channel_idx].tolist()
-    avg_truth_ch = avg_truth_inv[:, channel_idx].tolist()
-
-    # Global metrics (flattened)
-    preds_flat = all_preds_arr.reshape(-1, len(cols))
-    trues_flat = all_trues_arr.reshape(-1, len(cols))
-    preds_inv = scaler.inverse_transform(preds_flat)
-    trues_inv = scaler.inverse_transform(trues_flat)
-
-    mse = float(np.mean((trues_inv - preds_inv) ** 2))
-    mae = float(np.mean(np.abs(trues_inv - preds_inv)))
+    # 全局指标（σ 空间直接计算）
+    flat_preds = preds_arr.reshape(-1, preds_arr.shape[2])
+    flat_trues = trues_arr.reshape(-1, trues_arr.shape[2])
+    mse = float(np.mean((flat_trues - flat_preds) ** 2))
+    mae = float(np.mean(np.abs(flat_trues - flat_preds)))
     rmse = float(np.sqrt(mse))
-
-    mask = trues_inv > 1e-5
-    mape = float(np.mean(np.abs((trues_inv[mask] - preds_inv[mask]) / trues_inv[mask]))) if np.sum(mask) > 0 else 0.0
 
     return {
         "model": model_name,
+        "avg_pred": avg_pred,
+        "avg_truth": avg_truth,
         "metrics": {
-            "mse": round(mse, 4),
-            "mae": round(mae, 4),
-            "rmse": round(rmse, 4),
-            "mape": round(mape, 4),
+            "mse": round(mse, 6),
+            "mae": round(mae, 6),
+            "rmse": round(rmse, 6),
         },
-        "avg_pred": avg_pred_ch,
-        "avg_truth": avg_truth_ch,
         "n_windows": len(windows),
         "elapsed_s": round(elapsed, 1),
         "device": str(get_device()),
@@ -222,9 +198,11 @@ async def predict(
     csv_file: UploadFile = File(...),
     target_col: str = Form(...),
     pred_len: int = Form(24),
+    num_channels: int = Form(0),
 ):
     """
     用户上传 CSV 自定义预测
+    num_channels: 0=自动检测, >0=使用前N个数值列
     Response: {predictions: [[...]], meta: {...}}
     """
     info = get_model_info(model_name)
@@ -250,11 +228,22 @@ async def predict(
 
     df = parsed["df"]
 
-    if target_col not in parsed["numeric_cols"]:
-        raise HTTPException(400, detail={
-            "error": "invalid_target",
-            "numeric_cols": parsed["numeric_cols"]
-        })
+    # 通道数控制：>0 时截取前 N 个数值列
+    numeric_cols_all = parsed["numeric_cols"]
+    if num_channels > 0 and num_channels < len(numeric_cols_all):
+        df = df[numeric_cols_all[:num_channels] + [c for c in df.columns if c not in set(numeric_cols_all)]]
+        # 更新 numeric_cols 为截取后的列表
+        numeric_cols_used = numeric_cols_all[:num_channels]
+    else:
+        numeric_cols_used = numeric_cols_all
+
+    if target_col not in numeric_cols_used:
+        # 如果目标列不在截取后的列中，尝试在所有列中查找
+        if target_col not in parsed["numeric_cols"]:
+            raise HTTPException(400, detail={
+                "error": "invalid_target",
+                "numeric_cols": numeric_cols_used
+            })
 
     try:
         windows, scaler, numeric_cols = build_windows_from_csv(df, target_col, pred_len)
@@ -296,6 +285,7 @@ async def predict(
             "actual_pred_len": pred.shape[1] if pred.ndim >= 2 else len(pred),
             "input_rows": len(df),
             "n_windows": len(windows),
+            "num_channels": len(numeric_cols),
             "device": str(get_device()),
         },
     }
