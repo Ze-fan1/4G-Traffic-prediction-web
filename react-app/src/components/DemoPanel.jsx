@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { CHANNELS } from '../data/channels';
@@ -27,11 +27,54 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     };
   }, [model, chKey]);
 
-  // Chart data: preset + live verification overlay
+  // Track whether we've already auto-fetched for this model
+  const autoFetchedRef = useRef(null);
+
+  // Auto-fetch quick verify on mount when model has no preset data
+  useEffect(() => {
+    if (!isAvailable) return;
+    if (presetData) return; // has preset data, no need to auto-fetch
+    // Avoid re-fetching for the same model+channel combo
+    const key = `${model}-${chKey}`;
+    if (autoFetchedRef.current === key) return;
+    autoFetchedRef.current = key;
+
+    // Clear stale results
+    setQuickResult(null);
+    setFullResult(null);
+    setError(null);
+    setIsLoading(true);
+
+    fetch(`${API_BASE}/demo/${encodeURIComponent(model)}/quick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel_idx: channelIdx }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail?.reason || err.detail?.error || '请求失败');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setQuickResult(data);
+        setIsLoading(false);
+      })
+      .catch((e) => {
+        setError(e.message);
+        setIsLoading(false);
+      });
+  }, [model, channelIdx, chKey, presetData, isAvailable]);
+
+  // Linear models: flat line is expected behavior
+  const isLinearModel = model === 'AutoAR' || model === 'LinearRegression';
+
+  // Chart data: preset + live verification overlay + full eval average
   const chartData = useMemo(() => {
     const datasets = [];
 
-    // Ground truth
+    // Ground truth from preset or full eval
     if (presetData?.truth) {
       datasets.push({
         label: '真实值 (预置)',
@@ -60,7 +103,52 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       });
     }
 
-    // Live verification prediction (overlaid)
+    // Full eval average truth (drawn behind)
+    if (fullResult?.avg_truth) {
+      datasets.push({
+        label: '真实值 (全窗口均值)',
+        data: fullResult.avg_truth,
+        borderColor: '#78716C',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        tension: 0.35,
+        order: 2,
+      });
+    }
+
+    // Full eval average prediction
+    if (fullResult?.avg_pred) {
+      datasets.push({
+        label: `${model} (全窗口均值)`,
+        data: fullResult.avg_pred,
+        borderColor: '#F59E0B',
+        backgroundColor: '#F59E0B20',
+        borderWidth: 2,
+        borderDash: [8, 3],
+        pointRadius: 0,
+        tension: 0.35,
+        order: 1,
+      });
+    }
+
+    // Quick verify truth (shown when no preset truth available)
+    if (quickResult?.truth && !presetData?.truth) {
+      datasets.push({
+        label: '真实值 (实时窗口)',
+        data: quickResult.truth,
+        borderColor: '#18181B',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [3, 3],
+        pointRadius: 0,
+        tension: 0.35,
+        order: 0,
+      });
+    }
+
+    // Live verification prediction (overlaid, solid)
     if (quickResult?.pred) {
       datasets.push({
         label: `${model} (实时)`,
@@ -79,7 +167,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       labels: HOURS,
       datasets,
     };
-  }, [presetData, quickResult, model]);
+  }, [presetData, quickResult, fullResult, model]);
 
   const chartOptions = useMemo(() => ({
     responsive: true,
@@ -178,6 +266,20 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       <div className="chart-box-lg">
         <Line data={chartData} options={chartOptions} />
       </div>
+
+      {/* Linear model note */}
+      {isLinearModel && (
+        <div className="p-2 rounded-lg bg-[#FFF7ED] border border-[#FED7AA] text-xs text-[#9A3412]">
+          ℹ️ 线性模型预测为趋势直线，属正常行为。如需非线性预测，请选择深度学习模型。
+        </div>
+      )}
+
+      {/* Auto-fetch loading indicator */}
+      {!presetData && isLoading && !quickResult && (
+        <div className="p-2 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E40AF]">
+          ⏳ 正在从后端获取预测数据...
+        </div>
+      )}
 
       {/* Quick result */}
       {quickResult && (
