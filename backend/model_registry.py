@@ -67,13 +67,13 @@ MODEL_REGISTRY = {
     "Autoformer": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "Autoformer_4G_Autoformer_v2_Verify" / "checkpoint.pth"),
-        "args_override": {"d_model": 256, "d_ff": 512, "n_heads": 8},
+        "args_override": {"d_model": 64, "d_ff": 128, "n_heads": 8, "e_layers": 1},
         "tier": 1, "category": "Transformer",
     },
     "Transformer": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "Transformer_4G_Transformer_v2_Verify" / "checkpoint.pth"),
-        "args_override": {"d_model": 256, "d_ff": 512, "n_heads": 8},
+        "args_override": {"d_model": 512, "d_ff": 2048, "n_heads": 8},
         "tier": 1, "category": "Transformer",
     },
     "Informer": {
@@ -131,7 +131,7 @@ MODEL_REGISTRY = {
     "SegRNN": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "SegRNN_4G_SegRNN_v2_Verify" / "checkpoint.pth"),
-        "args_override": {"seg_len": 6, "d_model": 256},
+        "args_override": {"seg_len": 24, "d_model": 256},
         "tier": 1, "category": "RNN",
     },
 
