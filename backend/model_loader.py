@@ -9,8 +9,10 @@ from model_registry import get_model_info
 
 TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
 TSLIB_ROOT = TSLIB_ROOT.resolve()
+MODELS_DIR = TSLIB_ROOT / "models"
 
 sys.path.insert(0, str(TSLIB_ROOT))
+sys.path.insert(0, str(MODELS_DIR))  # utils/ 在 models/utils/ 中
 
 _current_model_name = None
 _current_model = None

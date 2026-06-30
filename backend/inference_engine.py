@@ -7,6 +7,7 @@ from pathlib import Path
 TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
 TSLIB_ROOT = TSLIB_ROOT.resolve()
 sys.path.insert(0, str(TSLIB_ROOT))
+sys.path.insert(0, str(TSLIB_ROOT / "models"))  # utils/ 在 models/utils/ 中
 
 import numpy as np
 from model_registry import get_model_info
