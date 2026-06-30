@@ -3,8 +3,8 @@ import { MODELS } from '../data/models';
 
 const TABS = [
   { id: 'overview', label: '首页' },
-  { id: 'curves', label: '预测曲线' },
-  { id: 'performance', label: '模型对比' },
+  { id: 'playground', label: '模型中心' },
+  { id: 'compare', label: '预测对比' },
   { id: 'errors', label: '误差分析' },
   { id: 'details', label: '详细报告' },
 ];

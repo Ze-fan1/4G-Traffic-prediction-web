@@ -2,15 +2,15 @@ import { useState, useCallback } from 'react';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import OverviewPage from './pages/OverviewPage';
-import PerformancePage from './pages/PerformancePage';
-import CurvesPage from './pages/CurvesPage';
+import PlaygroundPage from './pages/PlaygroundPage';
+import ComparePage from './pages/ComparePage';
 import ErrorsPage from './pages/ErrorsPage';
 import DetailsPage from './pages/DetailsPage';
 
 const PAGES = {
   overview: OverviewPage,
-  performance: PerformancePage,
-  curves: CurvesPage,
+  playground: PlaygroundPage,
+  compare: ComparePage,
   errors: ErrorsPage,
   details: DetailsPage,
 };
