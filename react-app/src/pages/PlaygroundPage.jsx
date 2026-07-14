@@ -1,20 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ModelSelector from '../components/ModelSelector';
 import DemoPanel from '../components/DemoPanel';
 import UploadPanel from '../components/UploadPanel';
 
-const MODEL_TIERS = {
-  '★ BaseModel': 2,
-  'Informer': 2, 'LightTS': 2, 'TSMixer': 2, 'SCINet': 2, 'Mamba': 2, 'TimeLLM': 2,
-  'IBM TTM': 3,
-};
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export default function PlaygroundPage() {
-  const [selectedModel, setSelectedModel] = useState('★ BaseModel');
-  const [channelIdx, setChannelIdx] = useState(1);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return sessionStorage.getItem('pg_model') || 'Naive';
+  });
+  const [channelIdx, setChannelIdx] = useState(() => {
+    const v = sessionStorage.getItem('pg_channel');
+    return v != null ? parseInt(v) : 1;
+  });
   const [activeSection, setActiveSection] = useState('demo');
+  const [modelInfo, setModelInfo] = useState({});
 
-  const isAvailable = (MODEL_TIERS[selectedModel] || 1) === 1;
+  // 持久化选中模型和通道
+  useEffect(() => { sessionStorage.setItem('pg_model', selectedModel); }, [selectedModel]);
+  useEffect(() => { sessionStorage.setItem('pg_channel', String(channelIdx)); }, [channelIdx]);
+
+  // 从后端 API 获取真实模型信息
+  useEffect(() => {
+    fetch(`${API_BASE}/models`)
+      .then(res => res.json())
+      .then(data => {
+        const info = {};
+        data.forEach(m => { info[m.name] = m; });
+        setModelInfo(info);
+      })
+      .catch(() => {
+        setModelInfo({});
+      });
+  }, []);
+
+  const currentInfo = modelInfo[selectedModel] || {};
+  const isAvailable = (currentInfo.tier || 1) === 1;
+  const runType = currentInfo.run_type || 'unknown';
 
   return (
     <div className="page-enter mt-4">
@@ -24,7 +46,9 @@ export default function PlaygroundPage() {
           <ModelSelector
             selectedModel={selectedModel}
             onSelect={setSelectedModel}
-            modelTiers={MODEL_TIERS}
+            modelTiers={Object.fromEntries(
+              Object.entries(modelInfo).map(([k, v]) => [k, v.tier])
+            )}
           />
         </div>
 
@@ -61,6 +85,7 @@ export default function PlaygroundPage() {
                 channelIdx={channelIdx}
                 onChangeChannel={setChannelIdx}
                 isAvailable={isAvailable}
+                runType={runType}
               />
             ) : (
               <UploadPanel

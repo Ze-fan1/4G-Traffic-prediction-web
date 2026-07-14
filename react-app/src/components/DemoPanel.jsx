@@ -40,7 +40,7 @@ function startGlobalPoll(mKey, jobId, onUpdate) {
   stopGlobalPoll(mKey);
   const interval = setInterval(async () => {
     try {
-      const r = await fetch(`/api/job/${jobId}`);
+      const r = await fetch(`${API_BASE}/job/${jobId}`);
       const d = await r.json();
       onUpdate(d);
       if (d.status === 'done' || d.status === 'error' || d.status === 'cancelled') {
