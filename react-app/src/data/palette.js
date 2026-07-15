@@ -40,3 +40,12 @@ export const MODEL_COLORS_6 = ['#16A34A', '#DC2626', '#2563EB', '#D97706', '#7C3
 export function getPalette(model) {
   return CAT_PALETTE[model.cat] || CAT_PALETTE['Statistical'];
 }
+
+export function getModelColor(modelName) {
+  if (modelName?.includes('BaseModel')) return MODEL_COLORS_20[0];
+  let hash = 0;
+  for (let index = 0; index < (modelName || '').length; index += 1) {
+    hash = ((hash << 5) - hash + modelName.charCodeAt(index)) | 0;
+  }
+  return MODEL_COLORS_20[Math.abs(hash) % (MODEL_COLORS_20.length - 1) + 1];
+}

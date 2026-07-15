@@ -1,4 +1,4 @@
-import { CAT_PALETTE } from '../data/palette';
+import { CAT_PALETTE, getModelColor } from '../data/palette';
 import ModelMarquee from '../components/ModelMarquee';
 import RevealCard from '../components/RevealCard';
 import useBenchmarkModels from '../hooks/useBenchmarkModels';
@@ -11,9 +11,11 @@ export default function OverviewPage() {
   const { models: benchmarkModels } = useBenchmarkModels();
   const MODELS = benchmarkModels;
   const CATS = [...new Set(MODELS.map(model => model.cat))];
-  const sorted = [...MODELS].sort((a, b) => a.mse - b.mse);
-  const bestMSE = sorted[0]?.mse ?? null;
-  const bestMSEModel = [...MODELS].sort((a, b) => a.mse - b.mse)[0];
+  const sorted = [...MODELS].filter(model => Number.isFinite(model.acc)).sort((a, b) => b.acc - a.acc);
+  const sortedMSE = [...MODELS].filter(model => Number.isFinite(model.mse)).sort((a, b) => a.mse - b.mse);
+  const bestACC = sorted[0]?.acc ?? null;
+  const bestACCModel = sorted[0];
+  const bestMSEModel = sortedMSE[0];
   const legendItems = CATS.map(cat => {
     const c = CAT_PALETTE[cat];
     const n = MODELS.filter(m => m.cat === cat).length;
@@ -84,8 +86,8 @@ export default function OverviewPage() {
       <div className="relative z-10 mt-6 mb-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: '最低 MSE 模型', value: bestMSEModel?.model || '待评测', color: 'var(--accent)' },
-            { label: '最低 MSE', value: bestMSEModel ? bestMSEModel.mse.toFixed(4) : '—', color: 'var(--accent)' },
+            { label: '最高 Custom ACC 模型', value: bestACCModel?.model || '待评测', color: 'var(--accent)' },
+            { label: '最高 Custom ACC', value: bestACC !== null ? bestACC.toFixed(4) : '—', color: 'var(--accent)' },
             { label: '已验证模型', value: String(MODELS.length) },
             { label: '实验协议', value: '同小区 · 连续48h · 24→24' },
           ].map((item, i) => (
@@ -106,21 +108,21 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* ═══ MSE ranking ═══ */}
+      {/* ═══ Custom ACC ranking ═══ */}
       <RevealCard className="mb-5">
         <div className="card p-5">
           <h3 className="text-sm font-semibold tracking-tight mb-3">
-            MSE 排名 · 全部 {MODELS.length} 已验证模型
+            Custom ACC 排名 · 全部 {sorted.length} 已验证模型
           </h3>
           <div className="space-y-1.5">
             {sorted.length ? sorted.map((m, i) => {
               const c = getCat(m);
-              const w = bestMSE ? (bestMSE / m.mse) * 100 : 0;
+              const w = bestACC ? (m.acc / bestACC) * 100 : 0;
               return (
                 <div
                   key={m.model}
                   className="flex items-center gap-2.5 text-xs group cursor-default"
-                  title={`${m.model} · ${m.cat}\nMSE: ${m.mse.toFixed(4)} · MAE: ${m.mae.toFixed(4)}`}
+                  title={`${m.model} · ${m.cat}\nCustom ACC: ${m.acc.toFixed(4)} · MSE: ${m.mse.toFixed(4)}`}
                 >
                   <span className="w-4 text-right font-mono text-[#A1A1AA] flex-shrink-0" style={{ fontSize: '0.65rem' }}>
                     {i + 1}
@@ -129,7 +131,7 @@ export default function OverviewPage() {
                     className="w-24 flex-shrink-0 truncate"
                     style={{
                       fontSize: '0.72rem',
-                      color: m.model.includes('BaseModel') ? 'var(--accent)' : '#52525B',
+                      color: getModelColor(m.model),
                       fontWeight: m.model.includes('BaseModel') ? 600 : 400,
                     }}
                   >
@@ -138,19 +140,20 @@ export default function OverviewPage() {
                   <div className="flex-1 h-5 bg-stone-100 rounded-full relative overflow-hidden">
                     <div
                       className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
-                      style={{ width: `${w}%`, background: c.border, opacity: 0.65 }}
+                      style={{ width: `${w}%`, background: getModelColor(m.model), opacity: 0.65 }}
                     />
                   </div>
                   <span
                     className="w-12 text-right font-mono font-medium flex-shrink-0"
                     style={{ fontSize: '0.72rem', color: c.text }}
                   >
-                    {m.mse.toFixed(4)}
+                    {m.acc.toFixed(4)}
                   </span>
                 </div>
               );
             }) : <p className="text-xs text-[#A1A1AA]">暂时没有完成严格评测的模型。</p>}
           </div>
+          <p className="mt-3 text-[0.65rem] text-[#A1A1AA]">最低 MSE：{bestMSEModel ? `${bestMSEModel.model} (${bestMSEModel.mse.toFixed(4)})` : '待评测'}</p>
 
           {/* 图例 */}
           <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(0,0,0,0.04)' }}>

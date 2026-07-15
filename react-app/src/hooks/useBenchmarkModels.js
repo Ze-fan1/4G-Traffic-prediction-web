@@ -11,7 +11,7 @@ function normalize(entry) {
     mae: metrics.mae,
     rmse: metrics.rmse,
     mape: metrics.mape ?? null,
-    acc: metrics.acc ?? null,
+    acc: metrics.custom_acc ?? metrics.acc ?? null,
     experimentId: entry.experiment_id,
   };
 }

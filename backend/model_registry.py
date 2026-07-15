@@ -53,11 +53,9 @@ MODEL_REGISTRY = {
 
     # ═══ Baseline ═══
     "★ BaseModel": {
-        "type": "pytorch",
-        "checkpoint": str(CHECKPOINTS_DIR / "External_BaseModel_4G_Base_v2_Verify" / "checkpoint.pth"),
-        "args_override": {"d_model": 512, "d_ff": 2048, "n_heads": 8},
-        "tier": 1, "category": "Baseline",  # 改为 Tier 1，可训练
-        "run_type": "train_dl",
+        "type": "external_forecast",
+        "tier": 1, "category": "Baseline",
+        "run_type": "external_base",
         "result_dir": str(RESULTS_DIR / "External_BaseModel_4G_Base_v2_Verify"),
     },
 

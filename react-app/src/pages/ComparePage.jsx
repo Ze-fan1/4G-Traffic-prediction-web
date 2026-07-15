@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { CHANNELS } from '../data/channels';
-import { getPalette } from '../data/palette';
+import { getModelColor } from '../data/palette';
 import RevealCard from '../components/RevealCard';
 import useBenchmarkModels from '../hooks/useBenchmarkModels';
 
@@ -43,9 +43,8 @@ export default function ComparePage() {
     models.forEach(model => {
       const curve = curves[model.model]?.curves?.[channel.name];
       if (!curve) return;
-      const palette = getPalette(model);
       datasets.push({
-        label: model.model, data: curve.pred, borderColor: palette.border,
+        label: model.model, data: curve.pred, borderColor: getModelColor(model.model),
         borderWidth: 1.7, pointRadius: 0, tension: 0.3,
       });
     });

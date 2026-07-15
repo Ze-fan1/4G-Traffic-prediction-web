@@ -9,6 +9,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => `${i + 1}h`);
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const RUN_TYPE_LABEL = {
+  external_base: 'Re-evaluate external BaseModel forecast',
   train_dl: '🔥 从零训练 (10 epochs)',
   inference_stat: '📊 生成预测曲线',
   inference_pretrained: '🔄 加载预训练模型并验证',
@@ -186,7 +187,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       .finally(() => setPresetLoading(false));
 
     // 只做一次性状态检查（不启动持续轮询），如果 job 已结束则处理
-    if (saved2.runJobId && saved2.runStatus === 'running') {
+    if (saved2.runJobId && ['running', 'training'].includes(saved2.runStatus)) {
       const jobId = saved2.runJobId;
       fetch(`${API_BASE}/job/${jobId}`).then(r => r.json()).then(d => {
         if (d.status === 'done' && d.curves) {
@@ -229,6 +230,35 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     }).catch(err => console.warn('[DemoPanel] preset err:', err.message))
       .finally(() => setPresetLoading(false));
   }, [presetWindow]);
+
+  useEffect(() => {
+    const saved2 = modelRunState.get(model) || {};
+    if (!saved2.runJobId || !['running', 'training'].includes(saved2.runStatus)) return undefined;
+    const jobId = saved2.runJobId;
+    const pollKey = `${model}_${jobId}`;
+    startGlobalPoll(pollKey, jobId, (d) => {
+      setRunEpoch(d.epoch || 0);
+      setRunLoss(d.loss || 0);
+      if (d.total_epochs > 0) setRunTotalEpochs(d.total_epochs);
+      setRunPhase(d.phase || 'training');
+      setCurveDone(d.curve_done || 0); setCurveTotal(d.curve_total || 0);
+      if (d.status === 'done' && d.curves) {
+        const entry = buildDoneEntry(d, model);
+        const updated = [...(modelHistoryCache.get(model) || []), entry];
+        modelHistoryCache.set(model, updated);
+        setRunHistory(updated);
+        window.dispatchEvent(new Event('benchmark-updated'));
+        setRunStatus('done'); setRunJobId(null);
+      } else if (d.status === 'error') {
+        setError(d.error || 'Failed'); setRunStatus('error'); setRunJobId(null);
+      } else if (d.status === 'cancelled') {
+        setRunStatus('cancelled'); setRunJobId(null);
+      } else {
+        setRunStatus(d.status || 'running');
+      }
+    });
+    return () => stopGlobalPoll(pollKey);
+  }, [model]);
 
   // ─── 开始运行 ───
   const handleRun = useCallback(async () => {
@@ -290,6 +320,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
 
   const chKey = CHANNELS[channelIdx]?.name || '总流量';
   const isCurvePhase = runPhase === 'curves' || runPhase === 'inference';
+  const isRunActive = runStatus === 'running' || runStatus === 'training';
   const runPct = isCurvePhase
     ? (curveTotal > 0 ? Math.round((curveDone / curveTotal) * 100) : 0)
     : (runTotalEpochs > 0 ? Math.round((runEpoch / runTotalEpochs) * 100) : 0);
@@ -368,7 +399,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       </div>
 
       {/* Progress */}
-      {runStatus === 'running' && (
+      {isRunActive && (
         <div className="p-3 rounded-lg bg-[#FEF3C7] border border-[#FCD34D] text-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-medium text-[#92400E]">
@@ -382,6 +413,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
           <div className="w-full h-2 rounded-full bg-[#FDE68A] overflow-hidden">
             <div className="h-full rounded-full bg-[#D97706] transition-all duration-500" style={{ width: `${Math.min(runPct, 100)}%` }} />
           </div>
+          <p className="text-[0.6rem] text-[#92400E]">Switching cards does not pause the backend job; returning resumes progress updates.</p>
         </div>
       )}
       {runStatus === 'cancelled' && <div className="p-2 rounded-lg bg-[#FFF7ED] border text-xs text-[#9A3412]">⏹️ 已取消</div>}
@@ -390,13 +422,13 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       {/* Buttons */}
       <div className="flex flex-wrap items-center gap-2">
         {!isAvailable ? <p className="text-xs text-[#A1A1AA]">🔒 暂不可用</p>
-          : runStatus === 'running'
+          : isRunActive
           ? <button onClick={handleCancel} className="text-xs px-4 py-2 rounded-xl bg-[#EF4444] text-white hover:bg-[#DC2626] cursor-pointer font-medium">⏹️ 停止</button>
           : <button onClick={handleRun} disabled={presetLoading}
               className="text-xs px-4 py-2 rounded-xl bg-[#18181B] text-white hover:bg-[#374151] cursor-pointer font-medium disabled:opacity-50">
               {runHistory.length > 0 ? `🔄 再次运行 (#${runHistory.length + 1})` : (RUN_TYPE_LABEL[runType] || RUN_TYPE_LABEL.train_dl)}
             </button>}
-        {runHistory.length > 0 && runStatus !== 'running' && (
+        {runHistory.length > 0 && !isRunActive && (
           <button onClick={handleClearHistory} className="text-xs px-3 py-2 rounded-xl bg-[#F3F4F6] text-[#6B7280] hover:bg-[#E5E7EB] cursor-pointer">🗑️ 清除</button>
         )}
       </div>

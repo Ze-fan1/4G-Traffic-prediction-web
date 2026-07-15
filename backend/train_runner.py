@@ -97,7 +97,8 @@ try:
     # ─── 2. Evaluate on the same panel-aware test windows as the benchmark ───
     df_train = load_observations('train')
     df_test = load_observations('test')
-    test_x, test_y, test_refs = build_windows(df_test, fit_training_scaler(df_train))
+    scaler = fit_training_scaler(df_train)
+    test_x, test_y, test_refs = build_windows(df_test, scaler)
     total_windows = len(test_x)
     display_idx = 0
 
@@ -177,6 +178,7 @@ try:
         write_benchmark_artifact(
             info["result_dir"], MODEL_NAME, all_p, all_t, test_refs,
             run_kind="local_retrain",
+            scaler=scaler,
             extra={"epochs": args.train_epochs, "seed": args.seed},
         )
     print(f'METRICS:{json.dumps(metrics_info)}', flush=True)

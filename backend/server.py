@@ -193,7 +193,7 @@ async def run_start(model_name: str):
         # 统计模型 / 预训练模型: 直接推理验证集
         return _start_inference_run(model_name, job_id, info, run_type)
 
-    elif run_type in ("train_xgboost", "train_mamba", "train_timellm"):
+    elif run_type in ("train_xgboost", "train_mamba", "train_timellm", "external_base"):
         # 独立脚本训练
         return _start_script_training(model_name, job_id, info, run_type)
 
@@ -367,6 +367,7 @@ def _start_inference_run(model_name, job_id, info, run_type):
             write_benchmark_artifact(
                 info["result_dir"], model_name, pred_arr, true_arr, refs,
                 run_kind=run_type,
+                scaler=fit_training_scaler(df_train),
             )
 
             # Use the first reproducible panel window; the metadata identifies it.
@@ -424,12 +425,15 @@ def _start_script_training(model_name, job_id, info, run_type):
         cmd = [sys.executable, "-u", script, "--data_path", data_dir,
                "--output_dir", str(TSLIB / "results"),
                "--llm_name", "gpt2", "--epochs", "5", "--batch_size", "4"]
+    elif run_type == "external_base":
+        script = str(Path(__file__).parent / "evaluate_external_base.py")
+        cmd = [sys.executable, "-u", script]
     else:
         raise HTTPException(400, detail={"error": "unknown_run_type"})
 
     proc = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1, cwd=str(TSLIB),
+        text=True, bufsize=1, cwd=str(Path(__file__).parent),
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
 

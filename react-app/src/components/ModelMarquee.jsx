@@ -1,4 +1,4 @@
-import { getPalette } from '../data/palette';
+import { getPalette, getModelColor } from '../data/palette';
 
 export default function ModelMarquee({ models = [] }) {
   // 按 ACC 排序
@@ -10,19 +10,20 @@ export default function ModelMarquee({ models = [] }) {
       <div className="flex gap-2 mb-2" style={{ animation: 'marqueeRight 60s linear infinite', width: 'max-content' }}>
         {[...sorted, ...sorted].map((m, i) => {
           const p = getPalette(m);
+          const color = getModelColor(m.model);
           return (
             <span
               key={`r1-${i}`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0 transition-all duration-300"
               style={{
                 background: p.bg,
-                border: `1px solid ${p.border}20`,
-                color: p.text,
+                border: `1px solid ${color}33`,
+                color,
                 fontSize: '0.7rem',
                 fontWeight: 500,
               }}
             >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.border }} />
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
               {m.model}
             </span>
           );
@@ -32,19 +33,20 @@ export default function ModelMarquee({ models = [] }) {
       <div className="flex gap-2" style={{ animation: 'marqueeLeft 55s linear infinite', width: 'max-content' }}>
         {[...sorted.reverse(), ...sorted.reverse()].map((m, i) => {
           const p = getPalette(m);
+          const color = getModelColor(m.model);
           return (
             <span
               key={`r2-${i}`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0 transition-all duration-300"
               style={{
                 background: p.bg,
-                border: `1px solid ${p.border}20`,
-                color: p.text,
+                border: `1px solid ${color}33`,
+                color,
                 fontSize: '0.7rem',
                 fontWeight: 500,
               }}
             >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.border }} />
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
               {m.model}
             </span>
           );

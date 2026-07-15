@@ -58,16 +58,22 @@ def load_preset_curves(model_name: str, window_idx: int | None = DEFAULT_WINDOW)
         }
         for channel, name in enumerate(FEATURE_COLS)
     }
-    errors = truth - pred
-    mse = float(np.mean(errors ** 2))
-    mae = float(np.mean(np.abs(errors)))
+    metrics = manifest.get("metrics")
+    if metrics is None:
+        errors = truth - pred
+        mse = float(np.mean(errors ** 2))
+        mae = float(np.mean(np.abs(errors)))
+        metrics = {"mse": mse, "mae": mae, "rmse": float(np.sqrt(mse))}
     return {
         "curves": curves,
         "window_idx": idx,
         "total_windows": int(len(pred)),
         "mode": "single",
         "space": "standardized",
-        "metrics_summary": {"mse": round(mse, 4), "mae": round(mae, 4), "rmse": round(float(np.sqrt(mse)), 4)},
+        "metrics_summary": {
+            key: round(float(value), 4) if value is not None else None
+            for key, value in metrics.items()
+        },
         "source": "reproducible_4g_benchmark",
         "protocol": PROTOCOL_VERSION,
         "experiment_id": manifest.get("experiment_id"),

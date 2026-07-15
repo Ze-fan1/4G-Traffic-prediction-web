@@ -138,7 +138,7 @@ def main():
     os.makedirs(save_dir, exist_ok=True)
     np.save(os.path.join(save_dir, 'pred.npy'), preds_3d)   # scaled space ← KEY CHANGE
     np.save(os.path.join(save_dir, 'true.npy'), trues_3d)   # scaled space ← KEY CHANGE
-    write_benchmark_artifact(save_dir, '★ BaseModel', preds_3d, trues_3d, refs, 'external_base')
+    write_benchmark_artifact(save_dir, '★ BaseModel', preds_3d, trues_3d, refs, 'external_base', scaler=scaler)
     print(f'Results saved to {save_dir}/  [SCALED space]')
     print('>>>>>> Base model evaluation complete!')
 
