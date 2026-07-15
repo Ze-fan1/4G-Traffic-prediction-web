@@ -113,6 +113,24 @@ function MultiWindowChart() {
 }
 
 export default function CurvesPage() {
+  return (
+    <div className="page-enter mt-5">
+      <RevealCard>
+        <div className="card p-6 space-y-3">
+          <h2 className="text-lg font-semibold">多模型曲线正在按新协议重评测</h2>
+          <p className="text-sm text-[#52525B] leading-relaxed">
+            旧页面使用了将 100 个小区直接拼接的 5,378 个窗口，可能跨小区或跨时间缺口，已不再作为可信比较展示。
+            新协议只保留同一小区内连续 48 小时片段，形成 24 小时输入到 24 小时预测的 3,514 个有效测试窗口。
+          </p>
+          <p className="text-sm text-[#52525B] leading-relaxed">
+            已完成 Naive、Persistent 24h 与外部 BaseModel 的可追溯重评测；其余模型完成相同协议重评测并写入实验清单后，会自动恢复到曲线页。
+            当前可在“模型中心 → 数据验证”查看已验证曲线、窗口所属小区和起始时间。
+          </p>
+        </div>
+      </RevealCard>
+    </div>
+  );
+/* Legacy visualizations are retained below during the staged re-evaluation. */
   const [channelIdx, setChannelIdx] = useState(() => {
     const v = sessionStorage.getItem('cp_channel');
     return v != null ? parseInt(v) : 1;

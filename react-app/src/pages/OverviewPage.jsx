@@ -63,7 +63,7 @@ export default function OverviewPage() {
             className="mt-5 text-sm text-[#A1A1AA] tracking-wide text-center"
             style={{ animation: 'fadeIn 1.4s 1.0s cubic-bezier(0.16,1,0.3,1) both' }}
           >
-            8 特征通道 · 多变量输入 · 24h 预测 · 3h 滚动步长 · {MODELS.length} 模型
+            8 特征通道 · 多变量输入 · 24h 预测 · 3h 步长 · 已严格重评测 {MODELS.length} 个模型
           </p>
         </div>
 
@@ -81,9 +81,9 @@ export default function OverviewPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { label: '最优模型', value: '★ BaseModel', color: 'var(--accent)' },
-            { label: '最高 ACC', value: '0.5901', color: 'var(--accent)' },
-            { label: '最低 MSE', value: '1.0615' },
-            { label: '实验配置', value: '8 通道 · 24h 预测 · 3h 步长' },
+            { label: '最高 ACC', value: '0.5853', color: 'var(--accent)' },
+            { label: '最低 MSE', value: '1.5664' },
+            { label: '实验协议', value: '同小区 · 连续48h · 24→24' },
           ].map((item, i) => (
             <RevealCard key={i}>
               <div className="card shape-blur p-5 flex flex-col justify-center" style={{ minHeight: 88 }}>
