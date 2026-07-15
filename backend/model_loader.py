@@ -2,6 +2,7 @@
 模型加载器 — 按需加载，全局单例缓存，自动识别模型类型
 """
 import sys
+import threading
 import torch
 import numpy as np
 from pathlib import Path
@@ -15,11 +16,15 @@ sys.path.insert(0, str(TSLIB_ROOT))
 sys.path.insert(0, str(MODELS_DIR))  # utils/ 在 models/utils/ 中
 
 import os as _os
+
+# 保存原始工作目录，避免全局副作用
+_ORIGINAL_CWD = _os.getcwd()
 _os.chdir(str(TSLIB_ROOT))  # exp_basic 使用相对路径 models/ 扫描模型文件
 
 _current_model_name = None
 _current_model = None
 _current_model_info = None
+_model_lock = threading.Lock()  # 线程安全：防止并发加载/卸载
 
 
 def get_device():
@@ -32,22 +37,40 @@ def get_loaded_model_name():
     return _current_model_name
 
 
-def unload():
-    """卸载当前模型，释放显存"""
+def _unload_unsafe():
+    """卸载当前模型（内部使用，调用方需持有 _model_lock）"""
     global _current_model, _current_model_name, _current_model_info
     if _current_model is not None:
-        del _current_model
+        try:
+            del _current_model
+        except Exception:
+            pass
         _current_model = None
         _current_model_name = None
         _current_model_info = None
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+
+
+def unload():
+    """卸载当前模型，释放显存（线程安全）"""
+    with _model_lock:
+        _unload_unsafe()
+
+
+def _get_gpu_memory_mb():
+    """获取当前 GPU 显存使用量 (MB)"""
+    if torch.cuda.is_available():
+        return torch.cuda.memory_allocated() / 1024**2
+    return 0
 
 
 def load(model_name: str):
     """
     按需加载模型。如果已加载同一模型则直接返回。
     返回: (model_instance, model_info)
+    线程安全：整个加载过程持有锁，防止并发卸载/加载冲突
     """
     global _current_model, _current_model_name, _current_model_info
 
@@ -55,14 +78,15 @@ def load(model_name: str):
     if info is None:
         raise ValueError(f"未知模型: {model_name}")
 
-    if model_name == _current_model_name and _current_model is not None:
-        return _current_model, info
+    with _model_lock:
+        if model_name == _current_model_name and _current_model is not None:
+            return _current_model, info
 
-    # 卸载旧模型
-    unload()
+        # 卸载旧模型
+        _unload_unsafe()
 
-    device = get_device()
-    mtype = info["type"]
+        device = get_device()
+        mtype = info["type"]
 
     if mtype == "statistical":
         # 统计模型不需要加载，直接返回 method 名
@@ -193,7 +217,15 @@ def load(model_name: str):
 
     elif mtype == "huggingface":
         model_id = info["model_id"]
-        if "chronos" in model_id.lower():
+        if "chronos-2" in model_id.lower():
+            # Chronos2 model needs Chronos2Pipeline
+            from chronos import Chronos2Pipeline
+            model = Chronos2Pipeline.from_pretrained(
+                model_id,
+                device_map=device,
+                torch_dtype=torch.bfloat16 if device.type == "cuda" else torch.float32,
+            )
+        elif "chronos" in model_id.lower():
             from chronos import ChronosPipeline
             model = ChronosPipeline.from_pretrained(
                 model_id,
@@ -236,9 +268,11 @@ def load(model_name: str):
     else:
         raise ValueError(f"未知模型类型: {mtype}")
 
-    _current_model = model
-    _current_model_name = model_name
-    _current_model_info = info
+    # 原子赋值：防止并发线程看到不一致状态
+    with _model_lock:
+        _current_model = model
+        _current_model_name = model_name
+        _current_model_info = info
     return model, info
 
 

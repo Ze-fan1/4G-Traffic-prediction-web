@@ -183,8 +183,37 @@ def _infer_huggingface(model_name: str, X: np.ndarray, pred_len: int) -> np.ndar
     preds = np.zeros((batch, pred_len, n_channels))
 
     for b in range(batch):
-        if "chronos" in model_id.lower():
-            # Chronos: 输入 (1, seq_len) 单变量
+        if "chronos-2" in model_id.lower():
+            # Chronos2: 多变量输入 (n_series=1, n_variates=n_channels, history_length=seq_len)
+            context = torch.tensor(X[b], dtype=torch.float32)  # CPU
+            context = context.T.unsqueeze(0)  # (1, n_channels, seq_len)
+            forecast = model_inst.predict(
+                context,
+                prediction_length=pred_len,
+                limit_prediction_length=False,
+            )
+            # forecast: list of (n_variates, n_quantiles, pred_len) ndarrays
+            arr = forecast[0] if isinstance(forecast, list) else forecast
+            arr = np.asarray(arr)
+            # Shape handling: (n_variates, n_quantiles, pred_len) → take median
+            if arr.ndim == 3:
+                # arr: (n_variates, n_quantiles, pred_len) or (pred_len, n_quantiles, n_variates)
+                # Find quantile dim (should be 21 for Chronos2)
+                if arr.shape[1] > arr.shape[0] and arr.shape[1] > arr.shape[2]:
+                    # (n_variates, n_quantiles, pred_len) — quantile on axis 1
+                    median_idx = arr.shape[1] // 2
+                    result = arr[:, median_idx, :]  # (n_variates, pred_len)
+                elif arr.shape[0] > arr.shape[1] and arr.shape[0] > arr.shape[2]:
+                    # (pred_len, n_quantiles, n_variates) — quantile on axis 1
+                    median_idx = arr.shape[1] // 2
+                    result = arr[:, median_idx, :]  # (pred_len, n_variates)
+                else:
+                    result = arr.mean(axis=1)  # fallback: average quantiles
+                preds[b] = result.T if result.shape[0] == n_channels else result  # ensure (pred_len, n_channels)
+            else:
+                preds[b] = arr.T if arr.shape[0] == n_channels else arr  # ensure (pred_len, n_channels)
+        elif "chronos" in model_id.lower():
+            # Chronos v1: 输入 (1, seq_len) 单变量
             for c in range(n_channels):
                 context = torch.tensor(X[b, :, c], dtype=torch.float32).to(device)
                 forecast = model_inst.predict(

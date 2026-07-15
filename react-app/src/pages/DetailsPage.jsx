@@ -50,7 +50,7 @@ export default function DetailsPage() {
               ['标准化方案', 'StandardScaler 拟合于训练集（均值和标准差来自训练数据），统一应用于所有模型。图表中的"σ"即标准差单位：0 = 历史均值水平，±1 = 偏离 1 个标准差'],
               ['滑动协议', '每 3 小时滑动一次窗口，24h 输入 → 24h 预测。共生成 5378 个测试窗口，时间序列交叉验证，严格避免未来信息泄露'],
               ['评估指标', 'MSE / MAE / RMSE：标准回归指标；MAPE / MSPE：相对误差；Custom ACC：分段准确率（高于均值样本单独评估后取平均）'],
-              ['基准模型', '★ BaseModel = 自研多尺度特征融合架构（External-Base），在当前 benchmark 上六项指标全面领先'],
+              ['基准模型', '★ BaseModel = External-Base 架构，在当前 benchmark 上六项指标全面领先'],
               ['运行环境', 'Python 3.10 · PyTorch 2.10+cu130 · CUDA 12 · NVIDIA RTX 5050'],
               ['代码仓库', 'Time-Series-Library（已在 GitHub 开源，含完整训练和评估脚本）'],
             ].map(([label, value]) => (
@@ -92,7 +92,7 @@ export default function DetailsPage() {
           </div>
           <div className="mt-3 p-3 rounded-xl bg-[#FAFAFA] border border-[rgba(0,0,0,0.03)]">
             <p className="text-xs text-[#52525B] leading-relaxed">
-              不同架构范式在 4G 流量预测任务上表现各异。Baseline（自研融合架构）以最低 MSE（1.0615）和最高 ACC（0.5901）领跑，
+              不同架构范式在 4G 流量预测任务上表现各异。Baseline（★ BaseModel）以最低 MSE（1.0615）和最高 ACC（0.5901）领跑，
               MLP 类别的平均 ACC 最高（受益于 DLinear 和 LightTS 的简单高效设计），而 LLM 零样本模型的平均性能较弱，提示领域迁移仍是开放挑战。
             </p>
           </div>

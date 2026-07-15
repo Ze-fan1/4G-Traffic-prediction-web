@@ -183,7 +183,7 @@ export default function PerformancePage() {
               <strong>📊 图表解读：</strong>
               按模型架构范式（Transformer、MLP、CNN、RNN、SSM、LLM 等）汇总平均 MSE，快速判断哪类架构在 4G 流量预测任务上整体最优。
               柱高越低越好。注意柱内的模型数量不同（如 LLM 类含 4 个 Chronos 变体 + TimeLLM），柱间对比时应结合样本量判断。Chronos2（ACC=0.4903）显著拉低了 LLM 类平均 MSE。
-              目前 Baseline（自研融合架构）以最低单模型 MSE 领跑，CNN/Tree 类别整体表现稳健。
+              目前 ★ BaseModel 以最低单模型 MSE 领跑，CNN/Tree 类别整体表现稳健。
             </p>
           </div>
         </div>

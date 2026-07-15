@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { CHANNELS } from '../data/channels';
@@ -113,8 +113,14 @@ function MultiWindowChart() {
 }
 
 export default function CurvesPage() {
-  const [channelIdx, setChannelIdx] = useState(1); // PDCCH 控制信道 — 拟合最佳、最具代表性
+  const [channelIdx, setChannelIdx] = useState(() => {
+    const v = sessionStorage.getItem('cp_channel');
+    return v != null ? parseInt(v) : 1;
+  });
   const [hiddenModels, setHiddenModels] = useState(new Set());
+
+  // 持久化通道选择
+  useEffect(() => { sessionStorage.setItem('cp_channel', String(channelIdx)); }, [channelIdx]);
   const toggleModel = useCallback((model) => { setHiddenModels(prev => { const next = new Set(prev); if (next.has(model)) next.delete(model); else next.add(model); return next; }); }, []);
   const allVisible = hiddenModels.size === 0;
   const toggleAll = useCallback(() => { if (allVisible) { setHiddenModels(new Set(ALL_MODELS)); } else { setHiddenModels(new Set()); } }, [allVisible]);
@@ -174,7 +180,7 @@ export default function CurvesPage() {
               预测曲线与真实值（黑色实线）贴合最紧密；
               其次为{modelRanking[1]?.name || ''}（MAE={modelRanking[1]?.mae?.toFixed(3) || ''}σ）。
               表现最弱的 <strong style={{color:'#DC2626'}}>{lastModel}</strong>（MAE={lastMAE}σ）与前两名差距约 {modelRanking.length >= 2 ? (modelRanking[modelRanking.length-1].mae / modelRanking[0].mae).toFixed(1) : '—'} 倍。
-              {topModel.includes('BaseModel') ? '★ BaseModel 凭借自研多尺度特征融合架构，在该窗口继续保持领先。' : ''}
+              {topModel.includes('BaseModel') ? '★ BaseModel 在该窗口继续保持领先。' : ''}
             </p>
           </div>
         )}

@@ -28,7 +28,8 @@ export default function ModelSelector({ selectedModel, onSelect, modelTiers = {}
   });
 
   return (
-    <div className="card p-4 h-full overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+    <div className="card p-4 h-full flex flex-col" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+      <div className="overflow-y-auto flex-1 pr-1" style={{ scrollbarWidth: 'thin' }}>
       {/* Search */}
       <div className="relative mb-3">
         <input
@@ -121,6 +122,7 @@ export default function ModelSelector({ selectedModel, onSelect, modelTiers = {}
       {filtered.length === 0 && (
         <p className="text-xs text-[#A1A1AA] text-center py-4">无匹配模型</p>
       )}
+      </div>
     </div>
   );
 }

@@ -187,9 +187,9 @@ export default function OverviewPage() {
           <h3 className="text-sm font-semibold tracking-tight mb-2">核心发现</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#52525B] leading-relaxed">
             {[
-              ['1.', '★ BaseModel 六项指标全面领先（MSE=1.0615, ACC=0.5901），验证了自研多尺度特征融合架构在 4G RAN 侧 KPI 预测任务上的显著优势。相比第二名 iTransformer，ACC 相对提升 12.0%。'],
+              ['1.', '★ BaseModel 六项指标全面领先（MSE=1.0615, ACC=0.5901）。相比第二名 iTransformer，ACC 相对提升 12.0%。'],
               ['2.', 'Transformer 架构内部表现分化明显。iTransformer（ACC=0.5267）与 PatchTST（ACC=0.5239）接近，但原生 Transformer（ACC=0.4140）落后超 27%，说明注意力机制的改进设计是性能提升的关键。'],
-              ['3.', '统计基线仍有参考价值，但已非 SOTA。XGBoost（ACC=0.4729）和 LightTS（ACC=0.5236）等轻量模型表现稳健，但低于 BaseModel 和 iTransformer 等先进模型。设置强基线对公平 benchmark 至关重要。'],
+              ['3.', 'XGBoost（ACC=0.4729）和 LightTS（ACC=0.5236）等轻量模型表现稳健，作为统计/机器学习基线具有良好的参考价值。'],
               ['4.', '最新零样本模型 Chronos2 突破领域鸿沟。Amazon Chronos2（120M 参数，ACC=0.4903）作为最新时序基础模型，零样本性能超越多个训练模型（XGBoost、TSMixer、Autoformer 等）。多变量联合预测 + 逐实例归一化是其关键提升。'],
             ].map(([num, text]) => (
               <div key={num} className="flex gap-2">
