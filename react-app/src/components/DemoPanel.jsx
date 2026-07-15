@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { CHANNELS } from '../data/channels';
@@ -37,6 +37,17 @@ const RUN_DASHES = [
 const modelHistoryCache = new Map();
 const modelRunState = new Map();
 const globalPollers = new Map();
+const presetCurveCache = new Map();
+
+function loadPresetCurve(model, window) {
+  const key = `${model}:${window}`;
+  if (!presetCurveCache.has(key)) {
+    presetCurveCache.set(key, fetch(`${API_BASE}/preset-curves/${encodeURIComponent(model)}?window=${window}`)
+      .then(response => response.ok ? response.json() : null)
+      .catch(() => null));
+  }
+  return presetCurveCache.get(key);
+}
 
 function stopGlobalPoll(mKey) {
   const p = globalPollers.get(mKey);
@@ -165,7 +176,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     });
   }, [model, runJobId, runStatus, runPhase, runEpoch, runTotalEpochs, runLoss, error, curveDone, curveTotal]);
 
-  // ─── 模型切换 → 加载预置 + 恢复状态（不再启动轮询） ───
+  // Restore model state without coupling it to the visible curve window.
   useEffect(() => {
     const saved2 = modelRunState.get(model) || {};
     setRunJobId(saved2.runJobId || null);
@@ -177,59 +188,20 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     setError(saved2.error || null);
     setCurveDone(saved2.curveDone || 0);
     setCurveTotal(saved2.curveTotal || 0);
-    setPresetLoading(true); setPresetData(null);
     setRunHistory(modelHistoryCache.get(model) || []);
-
-    const url = `${API_BASE}/preset-curves/${encodeURIComponent(model)}?window=${presetWindow}`;
-    fetch(url).then(r => r.json()).then(d => {
-      if (d.available && d.curves) setPresetData(d);
-    }).catch(err => console.warn('[DemoPanel] preset err:', err.message))
-      .finally(() => setPresetLoading(false));
-
-    // 只做一次性状态检查（不启动持续轮询），如果 job 已结束则处理
-    if (saved2.runJobId && ['running', 'training'].includes(saved2.runStatus)) {
-      const jobId = saved2.runJobId;
-      fetch(`${API_BASE}/job/${jobId}`).then(r => r.json()).then(d => {
-        if (d.status === 'done' && d.curves) {
-          const entry = buildDoneEntry(d, model);
-          const upd = [...(modelHistoryCache.get(model) || []), entry];
-          modelHistoryCache.set(model, upd);
-          setRunHistory(upd);
-          window.dispatchEvent(new Event('benchmark-updated'));
-          setRunStatus('done');
-          setRunJobId(null);
-          const s = modelRunState.get(model) || {};
-          s.runStatus = 'done'; s.runJobId = null;
-          modelRunState.set(model, s);
-        } else if (d.status === 'error') {
-          setRunStatus('error');
-          setError(d.error || '失败');
-          setRunJobId(null);
-        } else if (d.status === 'cancelled') {
-          setRunStatus('cancelled');
-          setRunJobId(null);
-        }
-        // 如果仍在 'running'，用户需要手动点按钮重新训练
-      }).catch(() => {}); // 网络错误忽略
-    }
-
-    // 清理：切换模型时停止该模型的旧轮询
-    return () => {
-      for (const [key] of globalPollers) {
-        if (key.startsWith(`${model}_`)) stopGlobalPoll(key);
-      }
-    };
   }, [model]);
 
-  // ─── 窗口切换 → 重载预置曲线 ───
+  // Window selection only changes the cached curve request; it never stops a job.
   useEffect(() => {
-    setPresetLoading(true); setPresetData(null);
-    const url = `${API_BASE}/preset-curves/${encodeURIComponent(model)}?window=${presetWindow}`;
-    fetch(url).then(r => r.json()).then(d => {
-      if (d.available && d.curves) setPresetData(d);
+    let cancelled = false;
+    setPresetLoading(true);
+    setPresetData(null);
+    loadPresetCurve(model, presetWindow).then(d => {
+      if (!cancelled && d?.available && d.curves) setPresetData(d);
     }).catch(err => console.warn('[DemoPanel] preset err:', err.message))
-      .finally(() => setPresetLoading(false));
-  }, [presetWindow]);
+      .finally(() => { if (!cancelled) setPresetLoading(false); });
+    return () => { cancelled = true; };
+  }, [model, presetWindow]);
 
   useEffect(() => {
     const saved2 = modelRunState.get(model) || {};

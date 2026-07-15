@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+﻿import { useState, useCallback, useRef, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
@@ -6,13 +6,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 const PRED_LEN_OPTIONS = [6, 12, 18, 24];
-const GENERIC_METHODS = [
-  { value: 'autoar', label: '自动自回归' },
-  { value: 'linear_trend', label: '线性趋势' },
-  { value: 'xgboost', label: '梯度提升树' },
-  { value: 'naive', label: '最后值基线' },
-];
-
 const ALLOWED_EXTS = ['.csv', '.tsv', '.txt', '.xlsx', '.xls', '.parquet'];
 
 function getFileExt(filename) {
@@ -24,12 +17,11 @@ const PRED_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC
 // 全局缓存：所有模型的预测叠加在同一张图上（切换卡片不丢失，上传新文件才清空）
 let globalPredHistory = [];
 
-export default function UploadPanel() {
+export default function UploadPanel({ selectedModel, modelInfo = {} }) {
   const [dataFile, setDataFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [targetCol, setTargetCol] = useState('');
   const [predLen, setPredLen] = useState(24);
-  const [method, setMethod] = useState('autoar');
   const [predHistory, setPredHistory] = useState(globalPredHistory);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -115,9 +107,9 @@ export default function UploadPanel() {
       formData.append('data_file', dataFile);
       formData.append('target_col', targetCol);
       formData.append('pred_len', String(predLen));
-      formData.append('method', method);
+      formData.append('num_channels', '0');
 
-      const res = await fetch(`${API_BASE}/generic-predict`, {
+      const res = await fetch(`${API_BASE}/predict/${encodeURIComponent(selectedModel)}`, {
         method: 'POST',
         body: formData,
       });
@@ -126,8 +118,8 @@ export default function UploadPanel() {
         throw new Error(err.detail?.detail || err.detail?.error || '预测失败');
       }
       const data = await res.json();
-      updatePredHistory(prev => [...prev.filter(e => e.model !== model), {
-        model: GENERIC_METHODS.find(item => item.value === method)?.label || method,
+      updatePredHistory(prev => [...prev.filter(e => e.model !== selectedModel), {
+        model: selectedModel,
         predictions: data.predictions, meta: data.meta, ts: Date.now()
       }]);
     } catch (e) {
@@ -135,7 +127,7 @@ export default function UploadPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [dataFile, targetCol, predLen, method]);
+  }, [dataFile, targetCol, predLen, selectedModel, updatePredHistory]);
 
   const downloadAllCSV = useCallback(() => {
     if (predHistory.length === 0) return;
@@ -199,8 +191,12 @@ export default function UploadPanel() {
   return (
     <div className="space-y-4">
       <div className="p-3 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E3A5F] leading-relaxed">
-        <b>通用预测</b>：适用于任意单个数值列。系统先把文件末尾一段留作回测，再使用完整历史预测未来。
-        此处不会把数据伪造成 4G 的 8 个特征，也不会调用左侧选中的 4G 基准权重。
+        <b>Local model prediction</b>: using the selected model <b>{selectedModel}</b>.{' '}
+        {modelInfo.custom_prediction
+          ? (modelInfo.type === 'statistical'
+            ? 'Statistical models accept any one numeric target column.'
+            : 'This model requires the complete eight-column 4G feature contract. Missing channels are never fabricated.')
+          : `This model cannot predict uploaded data: ${modelInfo.custom_prediction_reason || 'no reusable local weights.'}`}
       </div>
       {/* Upload area */}
       <div
@@ -294,18 +290,7 @@ export default function UploadPanel() {
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[#A1A1AA]">通用方法:</span>
-            <select
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer"
-            >
-              {GENERIC_METHODS.map(item => (
-                <option key={item.value} value={item.value}>{item.label}</option>
-              ))}
-            </select>
-          </div>
+          <span className="text-xs px-3 py-1.5 rounded-xl bg-[#F5F5F5] text-[#52525B]">Model: {selectedModel}</span>
         </div>
       )}
 
@@ -313,10 +298,10 @@ export default function UploadPanel() {
       {dataFile && (
         <button
           onClick={handlePredict}
-          disabled={isLoading || !targetCol}
+          disabled={isLoading || !targetCol || !modelInfo.custom_prediction}
           className="text-xs px-4 py-2 rounded-xl bg-[#3B82F6] text-white hover:bg-[#2563EB] disabled:opacity-50 transition-colors cursor-pointer font-medium"
         >
-          {isLoading ? '⏳ 推理中...' : '🚀 开始预测'}
+          {isLoading ? '⏳ 推理中...' : `🚀 使用 ${selectedModel} 预测`}
         </button>
       )}
 

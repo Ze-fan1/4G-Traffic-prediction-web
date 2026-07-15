@@ -11,15 +11,15 @@ if str(TSLIB) not in sys.path:
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 from model_registry import get_model_info, MODEL_REGISTRY
-from data_pipeline import parse_file, build_4g_window_from_upload, build_windows_from_csv, FEATURE_COLS, NUM_CHANNELS
+from data_pipeline import parse_file, build_4g_window_from_upload, FEATURE_COLS, NUM_CHANNELS
 from four_g_protocol import build_windows, fit_training_scaler, load_observations
 from model_loader import get_loaded_model_name, get_device, unload
 from inference_engine import infer
-from preset_curves import load_preset_curves, get_available_preset_models
+from preset_curves import load_preset_curves, get_available_preset_models, load_benchmark_manifest, has_benchmark_artifact
 from benchmark_artifacts import write_benchmark_artifact
-from generic_forecast import SUPPORTED_METHODS, forecast as generic_forecast
 
 app = FastAPI(title="4G Traffic Playground API", version="0.4.0")
 
@@ -52,6 +52,55 @@ _JOB_CLEANUP_INTERVAL = 300  # 每5分钟清理一次
 SEQ_LEN = 24
 PRED_LEN = 24
 STEP = 3
+
+
+def _custom_prediction_capability(model_name: str, info: dict) -> tuple[bool, str]:
+    """State whether the selected local model has a valid upload path."""
+    model_type = info.get("type")
+    if model_type == "statistical":
+        return True, "local statistical model"
+    if model_type == "pytorch":
+        checkpoint = info.get("checkpoint")
+        return (True, "local checkpoint; requires all eight 4G features") if checkpoint and Path(checkpoint).exists() else (False, "checkpoint is missing; train this model first")
+    if model_type == "xgboost":
+        model_file = info.get("model_file")
+        exists = model_file and (Path(model_file).exists() or Path(model_file).with_suffix(".pkl").exists())
+        return (True, "local XGBoost weights; requires all eight 4G features") if exists else (False, "saved XGBoost weights are missing; training currently writes metrics only")
+    if model_type == "huggingface":
+        return True, "local HuggingFace model when its weights are cached"
+    if model_type in ("mamba", "timellm"):
+        return False, "training script does not save reusable weights yet"
+    if model_type == "external_forecast":
+        return False, "external benchmark forecast is not a user-upload model"
+    return False, "model type is not supported for uploads"
+
+
+def _run_capability(info: dict) -> tuple[bool, str]:
+    if info.get("type") == "huggingface":
+        return True, "loads locally if weights are cached; otherwise download is required"
+    if info.get("run_type") == "external_base":
+        return True, "evaluates the supplied external forecast"
+    return info.get("tier", 2) < 2, info.get("tier2_reason", "")
+
+
+def _predict_uploaded_statistical(model_name: str, frame, target_col: str, pred_len: int) -> dict:
+    """Run the selected registered statistical model on an uploaded numeric series."""
+    values = frame[target_col].to_numpy(dtype=np.float32)
+    if len(values) < SEQ_LEN:
+        raise ValueError(f"At least {SEQ_LEN} rows are required")
+    scaler = StandardScaler().fit(values.reshape(-1, 1))
+    history = scaler.transform(values.reshape(-1, 1))[-SEQ_LEN:]
+    prediction = np.asarray(infer(model_name, history, pred_len=pred_len))
+    if prediction.ndim == 3:
+        prediction = prediction[0]
+    prediction = prediction.reshape(pred_len, -1)[:, 0]
+    raw_prediction = scaler.inverse_transform(prediction.reshape(-1, 1)).ravel()
+    return {
+        "model": model_name,
+        "predictions": [round(float(value), 6) for value in raw_prediction],
+        "meta": {"target_col": target_col, "pred_len": pred_len, "input_rows": len(values),
+                 "space": "original", "protocol": "local-statistical-upload-v1"},
+    }
 
 
 def _parse_progress_line(line):
@@ -122,12 +171,15 @@ async def api_unload():
 async def api_list_models():
     result = []
     for name, info in MODEL_REGISTRY.items():
-        verified = load_preset_curves(name) is not None
+        verified = has_benchmark_artifact(name)
+        available, availability_reason = _run_capability(info)
+        custom_prediction, custom_prediction_reason = _custom_prediction_capability(name, info)
         result.append({
             "name": name, "category": info["category"], "tier": info["tier"],
             "type": info["type"], "run_type": info.get("run_type", "unknown"),
             "verified": verified,
-            "available": info["tier"] == 1,
+            "available": available, "availability_reason": availability_reason,
+            "custom_prediction": custom_prediction, "custom_prediction_reason": custom_prediction_reason,
             "tier_reason": info.get("tier2_reason", ""),
         })
     return result
@@ -157,10 +209,9 @@ async def api_preset_models():
 async def api_benchmark_models():
     """Return only models with an auditable panel-benchmark artifact."""
     models = []
-    for name in get_available_preset_models():
-        curve = load_preset_curves(name)
+    for name, curve in load_benchmark_manifest().items():
         info = get_model_info(name)
-        if curve is None or info is None:
+        if info is None:
             continue
         models.append({
             "model": name,
@@ -555,31 +606,6 @@ async def api_parse_file(data_file: UploadFile = File(...)):
 
 
 # ═══ Custom Prediction ═══
-@app.post("/api/generic-predict")
-async def generic_predict(data_file: UploadFile = File(...), target_col: str = Form(...),
-                          pred_len: int = Form(24), method: str = Form("autoar")):
-    """Forecast a user series on its own scale with a holdout backtest."""
-    if method not in SUPPORTED_METHODS:
-        raise HTTPException(400, detail={"error": "unsupported_method", "supported": SUPPORTED_METHODS})
-    try:
-        parsed = parse_file(await data_file.read(), data_file.filename or "data.csv")
-        result = generic_forecast(parsed["df"], target_col, int(pred_len), method)
-    except ValueError as exc:
-        raise HTTPException(400, detail={"error": "invalid_series", "detail": str(exc)})
-    return {
-        "method": method,
-        "predictions": [round(float(value), 6) for value in result.prediction],
-        "meta": {
-            "target_col": target_col, "pred_len": int(pred_len),
-            "input_rows": result.train_rows + result.validation_rows,
-            "validation_rows": result.validation_rows,
-            "validation_mae": round(result.validation_mae, 6),
-            "validation_rmse": round(result.validation_rmse, 6),
-            "space": "original", "protocol": "generic-series-v1",
-        },
-    }
-
-
 @app.post("/api/predict/{model_name}")
 async def predict(model_name: str, data_file: UploadFile = File(...),
                    target_col: str = Form(...), pred_len: int = Form(24),
@@ -600,26 +626,18 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
     if 0 < num_channels < len(nc_all):
         df = df[nc_all[:num_channels] + [c for c in df.columns if c not in set(nc_all)]]
     if target_col not in nc_all:
-        raise HTTPException(400, detail={"error": f"目标列 '{target_col}' 不在数值列中: {numeric_cols}"})
+        raise HTTPException(400, detail={"error": f"target column '{target_col}' is not numeric; available columns: {nc_all}"})
 
     mtype = info["type"]
+    can_predict, prediction_reason = _custom_prediction_capability(model_name, info)
+    if not can_predict:
+        raise HTTPException(503, detail={"error": "custom_prediction_unavailable", "detail": prediction_reason})
 
-    # ─── 不支持自定义数据预测的模型 ───
-    if mtype in ("mamba", "timellm"):
-        raise HTTPException(400, detail={
-            "error": "model_not_for_custom_prediction",
-            "detail": (f"{model_name} 使用独立模型架构，仅支持在基准4G数据上「从零训练」生成benchmark曲线。"
-                       f"其训练脚本不保存可加载的模型权重，因此无法用于自定义数据预测。"
-                       f"请选择其他模型（如 DLinear/PatchTST/TimesNet 等）进行自定义预测。")
-        })
-    # SCINet 的二叉树架构对输入通道结构极其敏感，非8通道真实4G数据会退化为恒值预测
-    if model_name == "SCINet":
-        raise HTTPException(400, detail={
-            "error": "model_channel_sensitive",
-            "detail": (f"SCINet 的二叉树下采样架构依赖训练时的8通道4G数据协方差结构。"
-                       f"自定义数据与训练数据通道结构不同时模型退化为均值预测。"
-                       f"建议使用 DLinear/PatchTST/TimesNet/Autoformer 等模型进行自定义预测。")
-        })
+    if mtype == "statistical":
+        try:
+            return _predict_uploaded_statistical(model_name, df, target_col, pred_len)
+        except ValueError as exc:
+            raise HTTPException(400, detail={"error": "invalid_series", "detail": str(exc)})
 
     # ─── HuggingFace 预训练模型：直接用原始空间数据 ───
     if mtype == "huggingface":
@@ -675,35 +693,6 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
             "protocol": "4g-feature-contract-v1",
         },
     }
-
-
-@app.post("/api/generic-predict")
-async def generic_predict(data_file: UploadFile = File(...), target_col: str = Form(...),
-                          pred_len: int = Form(24), method: str = Form("autoar")):
-    """Forecast a user series on its own scale with a visible holdout backtest."""
-    if method not in SUPPORTED_METHODS:
-        raise HTTPException(400, detail={"error": "unsupported_method", "supported": SUPPORTED_METHODS})
-    fn = data_file.filename or "data.csv"
-    try:
-        parsed = parse_file(await data_file.read(), fn)
-        result = generic_forecast(parsed["df"], target_col, int(pred_len), method)
-    except ValueError as exc:
-        raise HTTPException(400, detail={"error": "invalid_series", "detail": str(exc)})
-    return {
-        "method": method,
-        "predictions": [round(float(value), 6) for value in result.prediction],
-        "meta": {
-            "target_col": target_col,
-            "pred_len": int(pred_len),
-            "input_rows": result.train_rows + result.validation_rows,
-            "validation_rows": result.validation_rows,
-            "validation_mae": round(result.validation_mae, 6),
-            "validation_rmse": round(result.validation_rmse, 6),
-            "space": "original",
-            "protocol": "generic-series-v1",
-        },
-    }
-
 
 if __name__ == "__main__":
     import uvicorn

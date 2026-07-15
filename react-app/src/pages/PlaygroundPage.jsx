@@ -4,6 +4,7 @@ import DemoPanel from '../components/DemoPanel';
 import UploadPanel from '../components/UploadPanel';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const MODELS_CACHE_KEY = 'playground_models_cache_v2';
 
 export default function PlaygroundPage() {
   const [selectedModel, setSelectedModel] = useState(() => {
@@ -14,7 +15,9 @@ export default function PlaygroundPage() {
     return v != null ? parseInt(v) : 1;
   });
   const [activeSection, setActiveSection] = useState('demo');
-  const [modelInfo, setModelInfo] = useState({});
+  const [modelInfo, setModelInfo] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(MODELS_CACHE_KEY) || '{}'); } catch { return {}; }
+  });
 
   // 持久化选中模型和通道
   useEffect(() => { sessionStorage.setItem('pg_model', selectedModel); }, [selectedModel]);
@@ -26,25 +29,26 @@ export default function PlaygroundPage() {
       .then(res => res.json())
       .then(data => {
         const info = {};
-        data.forEach(m => { info[m.name] = m; });
+        (data.models || data).forEach(m => { info[m.name] = m; });
+        sessionStorage.setItem(MODELS_CACHE_KEY, JSON.stringify(info));
         setModelInfo(info);
       })
-      .catch(() => {
-        setModelInfo({});
-      });
+      .catch(() => {});
     loadModels();
-    const timer = window.setInterval(loadModels, 5000);
+    const timer = window.setInterval(loadModels, 30000);
     return () => window.clearInterval(timer);
   }, []);
 
   const currentInfo = modelInfo[selectedModel] || {};
-  const isAvailable = (currentInfo.tier || 1) === 1;
+  const isAvailable = currentInfo.available ?? ((currentInfo.tier || 1) === 1);
   const runType = currentInfo.run_type || 'unknown';
   const selectorModels = Object.values(modelInfo).map(info => ({
     model: info.name,
     cat: info.category,
     runType: info.run_type,
     verified: info.verified,
+    available: info.available,
+    availabilityReason: info.availability_reason,
   }));
 
   return (
@@ -98,7 +102,7 @@ export default function PlaygroundPage() {
                 runType={runType}
               />
             ) : (
-              <UploadPanel />
+              <UploadPanel selectedModel={selectedModel} modelInfo={currentInfo} />
             )}
           </div>
         </div>

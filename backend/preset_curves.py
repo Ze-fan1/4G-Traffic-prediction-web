@@ -41,6 +41,28 @@ def _validated_artifact(result_dir: Path) -> tuple[np.ndarray, np.ndarray, dict]
     return pred, truth, manifest
 
 
+def load_benchmark_manifest(model_name: str) -> dict | None:
+    """Read only a model manifest; avoid loading large NumPy arrays for lists."""
+    info = MODEL_REGISTRY.get(model_name)
+    if not info:
+        return None
+    result_dir = Path(info.get("result_dir", ""))
+    manifest_path = result_dir / MANIFEST_NAME
+    if not (manifest_path.exists() and (result_dir / "pred.npy").exists() and (result_dir / "true.npy").exists()):
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if manifest.get("protocol") != PROTOCOL_VERSION:
+        return None
+    return manifest
+
+
+def has_benchmark_artifact(model_name: str) -> bool:
+    return load_benchmark_manifest(model_name) is not None
+
+
 def load_preset_curves(model_name: str, window_idx: int | None = DEFAULT_WINDOW) -> dict | None:
     """Load a model's own validated prediction and truth arrays in scaled space."""
     info = MODEL_REGISTRY.get(model_name)
@@ -84,5 +106,5 @@ def load_preset_curves(model_name: str, window_idx: int | None = DEFAULT_WINDOW)
 def get_available_preset_models() -> list[str]:
     return [
         name for name, info in MODEL_REGISTRY.items()
-        if _validated_artifact(Path(info.get("result_dir", ""))) is not None
+        if has_benchmark_artifact(name)
     ]

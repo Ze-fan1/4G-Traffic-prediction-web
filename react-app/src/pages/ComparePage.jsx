@@ -10,6 +10,16 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 const HOURS = Array.from({ length: 24 }, (_, index) => `${index + 1}h`);
+const curveCache = new Map();
+
+function loadCurve(modelName) {
+  if (!curveCache.has(modelName)) {
+    curveCache.set(modelName, fetch(`${API_BASE}/preset-curves/${encodeURIComponent(modelName)}?window=0`)
+      .then(response => response.ok ? response.json() : null)
+      .catch(() => null));
+  }
+  return curveCache.get(modelName);
+}
 
 export default function ComparePage() {
   const { models } = useBenchmarkModels();
@@ -18,11 +28,7 @@ export default function ComparePage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all(models.map(async model => {
-      const response = await fetch(`${API_BASE}/preset-curves/${encodeURIComponent(model.model)}?window=0`);
-      const data = await response.json();
-      return [model.model, data];
-    })).then(entries => {
+    Promise.all(models.map(async model => [model.model, await loadCurve(model.model)])).then(entries => {
       if (!cancelled) setCurves(Object.fromEntries(entries.filter(([, data]) => data.available && data.curves)));
     }).catch(() => {
       if (!cancelled) setCurves({});

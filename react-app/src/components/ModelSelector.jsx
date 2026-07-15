@@ -37,7 +37,7 @@ export default function ModelSelector({ selectedModel, onSelect, models = [], mo
               {!isCollapsed && <div className="ml-3 space-y-0.5">
                 {items.map(model => {
                   const selected = selectedModel === model.model;
-                  const unavailable = (modelTiers[model.model] || 1) >= 2;
+                  const unavailable = model.available === false || (modelTiers[model.model] || 1) >= 2;
                   return (
                     <button key={model.model} onClick={() => onSelect(model.model)} disabled={unavailable}
                       title={unavailable ? '暂不可用' : `${model.model} · ${model.runType}`}
