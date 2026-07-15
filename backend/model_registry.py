@@ -1,5 +1,5 @@
 """
-26 模型完整注册表 — 每个模型的类型、checkpoint 路径、类别、Tier 等级
+26 模型完整注册表 — 每个模型的类型、checkpoint 路径、类别、Tier 等级、运行方式
 """
 import os
 from pathlib import Path
@@ -7,32 +7,45 @@ from pathlib import Path
 TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
 CHECKPOINTS_DIR = TSLIB_ROOT / "checkpoints"
 DATA_DIR = TSLIB_ROOT / "data_provider" / "4g_traffic"
+RESULTS_DIR = TSLIB_ROOT / "results"
 
 MODEL_REGISTRY = {
     # ═══ Statistical — 纯计算，无需模型文件 ═══
     "Naive": {
         "type": "statistical", "method": "naive",
         "tier": 1, "category": "Statistical",
+        "run_type": "inference_stat",
+        "result_dir": str(RESULTS_DIR / "Naive_4G"),
     },
     "Persistent 24h": {
         "type": "statistical", "method": "persistent",
         "tier": 1, "category": "Statistical",
+        "run_type": "inference_stat",
+        "result_dir": str(RESULTS_DIR / "Persistent24h_4G"),
     },
     "Historical Avg": {
         "type": "statistical", "method": "historical_avg",
         "tier": 1, "category": "Statistical",
+        "run_type": "inference_stat",
+        "result_dir": str(RESULTS_DIR / "HistoricalAverage_4G"),
     },
     "AutoARIMA": {
         "type": "statistical", "method": "autoarima",
         "tier": 1, "category": "Statistical",
+        "run_type": "inference_stat",
+        "result_dir": str(RESULTS_DIR / "AutoARIMA_4G"),
     },
     "AutoAR": {
         "type": "statistical", "method": "autoar",
         "tier": 1, "category": "Statistical",
+        "run_type": "inference_stat",
+        "result_dir": str(RESULTS_DIR / "AutoAR_4G"),
     },
     "LinearRegression": {
         "type": "statistical", "method": "linear_regression",
         "tier": 1, "category": "Statistical",
+        "run_type": "inference_stat",
+        "result_dir": str(RESULTS_DIR / "LinearRegression_4G"),
     },
 
     # ═══ Tree ═══
@@ -40,6 +53,8 @@ MODEL_REGISTRY = {
         "type": "xgboost",
         "model_file": str(TSLIB_ROOT / "results" / "XGBoost_n100_d5_lr0.1" / "xgb_model.json"),
         "tier": 1, "category": "Tree",
+        "run_type": "train_xgboost",
+        "result_dir": str(RESULTS_DIR / "XGBoost_n100_d5_lr0.1"),
     },
 
     # ═══ Baseline ═══
@@ -47,41 +62,51 @@ MODEL_REGISTRY = {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "External_BaseModel_4G_Base_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 512, "d_ff": 2048, "n_heads": 8},
-        "tier": 2, "category": "Baseline",
-        "tier2_reason": "自研模型 checkpoint 待确认",
+        "tier": 1, "category": "Baseline",  # 改为 Tier 1，可训练
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "External_BaseModel_4G_Base_v2_Verify"),
     },
 
-    # ═══ Transformer — 7 个 checkpoint ═══
+    # ═══ Transformer — 5 个 ═══
     "PatchTST": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "PatchTST_4G_PatchTST_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 128, "d_ff": 256, "n_heads": 4},
         "tier": 1, "category": "Transformer",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "PatchTST_4G_PatchTST_v2_Verify"),
     },
     "iTransformer": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "iTransformer_4G_iTransformer_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 256, "d_ff": 512, "n_heads": 8},
         "tier": 1, "category": "Transformer",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "iTransformer_4G_iTransformer_v2_Verify"),
     },
     "Autoformer": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "Autoformer_4G_Autoformer_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 64, "d_ff": 128, "n_heads": 8, "e_layers": 1},
         "tier": 1, "category": "Transformer",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "Autoformer_4G_Autoformer_v2_Verify"),
     },
     "Transformer": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "Transformer_4G_Transformer_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 512, "d_ff": 2048, "n_heads": 8},
         "tier": 1, "category": "Transformer",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "Transformer_4G_Transformer_v2_Verify"),
     },
     "Informer": {
         "type": "pytorch",
-        "checkpoint": None,
+        "checkpoint": str(CHECKPOINTS_DIR / "Informer_4G_Informer_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 128, "d_ff": 256, "n_heads": 4},
-        "tier": 2, "category": "Transformer",
-        "tier2_reason": "无 checkpoint，需训练 ~1h",
+        "tier": 1, "category": "Transformer",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "Informer_4G_Informer_v2_Verify"),
     },
 
     # ═══ MLP ═══
@@ -90,41 +115,50 @@ MODEL_REGISTRY = {
         "checkpoint": str(CHECKPOINTS_DIR / "DLinear_4G_DLinear_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 128, "individual": False},
         "tier": 1, "category": "MLP",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "DLinear_4G_DLinear_v2_Verify"),
     },
     "LightTS": {
         "type": "pytorch",
-        "checkpoint": None,
+        "checkpoint": str(CHECKPOINTS_DIR / "LightTS_4G_LightTS_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 128},
-        "tier": 2, "category": "MLP",
-        "tier2_reason": "无 checkpoint，需训练 ~30min",
+        "tier": 1, "category": "MLP",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "LightTS_4G_LightTS_v2_Verify"),
     },
     "TSMixer": {
         "type": "pytorch",
-        "checkpoint": None,
+        "checkpoint": str(CHECKPOINTS_DIR / "TSMixer_4G_TSMixer_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 128},
-        "tier": 2, "category": "MLP",
-        "tier2_reason": "无 checkpoint，需训练 ~1h",
+        "tier": 1, "category": "MLP",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "TSMixer_4G_TSMixer_v2_Verify"),
     },
     "IBM TTM": {
         "type": "huggingface",
         "model_id": "ibm-granite/granite-timeseries-ttm-r1",
         "context_len": 512,
         "tier": 1, "category": "MLP",
+        "run_type": "inference_pretrained",
+        "result_dir": str(RESULTS_DIR / "IBM_TTM_ZeroShot_sl24_pl24_step3"),
     },
 
     # ═══ CNN ═══
     "TimesNet": {
         "type": "pytorch",
         "checkpoint": str(CHECKPOINTS_DIR / "TimesNet_4G_TimesNet_v2_Verify" / "checkpoint.pth"),
-        "args_override": {},
+        "args_override": {"d_model": 64, "d_ff": 128, "num_kernels": 3, "e_layers": 1},
         "tier": 1, "category": "CNN",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "TimesNet_4G_TimesNet_v2_Verify"),
     },
     "SCINet": {
         "type": "pytorch",
-        "checkpoint": None,
+        "checkpoint": str(CHECKPOINTS_DIR / "SCINet_4G_SCINet_v2_Verify" / "checkpoint.pth"),
         "args_override": {"d_model": 128},
-        "tier": 2, "category": "CNN",
-        "tier2_reason": "无 checkpoint，需训练 ~1h",
+        "tier": 1, "category": "CNN",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "SCINet_4G_SCINet_v2_Verify"),
     },
 
     # ═══ RNN ═══
@@ -133,44 +167,35 @@ MODEL_REGISTRY = {
         "checkpoint": str(CHECKPOINTS_DIR / "SegRNN_4G_SegRNN_v2_Verify" / "checkpoint.pth"),
         "args_override": {"seg_len": 24, "d_model": 256},
         "tier": 1, "category": "RNN",
+        "run_type": "train_dl",
+        "result_dir": str(RESULTS_DIR / "SegRNN_4G_SegRNN_v2_Verify"),
     },
 
     # ═══ SSM ═══
     "Mamba": {
-        "type": "pytorch",
+        "type": "mamba",
         "checkpoint": None,
         "args_override": {"d_model": 128, "d_ff": 32, "expand": 2},
-        "tier": 2, "category": "SSM",
-        "tier2_reason": "独立脚本运行，无标准 .pth checkpoint",
+        "tier": 1, "category": "SSM",  # 改为 Tier 1，通过独立脚本训练
+        "run_type": "train_mamba",
+        "result_dir": str(RESULTS_DIR / "Mamba_d128_ex2_ds32_dc4_el2"),
     },
 
     # ═══ LLM ═══
     "TimeLLM": {
-        "type": "pytorch",
+        "type": "timellm",
         "checkpoint": None,
         "args_override": {},
-        "tier": 2, "category": "LLM",
-        "tier2_reason": "依赖 GPT-2 权重，需特殊加载",
-    },
-    "Chronos-tiny": {
-        "type": "huggingface",
-        "model_id": "amazon/chronos-t5-tiny",
-        "tier": 1, "category": "LLM",
-    },
-    "Chronos-small": {
-        "type": "huggingface",
-        "model_id": "amazon/chronos-t5-small",
-        "tier": 1, "category": "LLM",
-    },
-    "Chronos-base": {
-        "type": "huggingface",
-        "model_id": "amazon/chronos-t5-base",
-        "tier": 1, "category": "LLM",
+        "tier": 1, "category": "LLM",  # 改为 Tier 1，通过独立脚本训练
+        "run_type": "train_timellm",
+        "result_dir": str(RESULTS_DIR / "TimeLLM_gpt2_pl6_s3"),
     },
     "Chronos2": {
         "type": "huggingface",
         "model_id": "amazon/chronos-2",
         "tier": 1, "category": "LLM",
+        "run_type": "inference_pretrained",
+        "result_dir": str(RESULTS_DIR / "Chronos2_amazon_chronos-2"),
     },
 }
 
@@ -189,6 +214,7 @@ def list_models(tier_filter: int = None) -> list:
             "category": info["category"],
             "tier": info["tier"],
             "type": info["type"],
+            "run_type": info.get("run_type", "unknown"),
             "available": info["tier"] == 1,
         }
         if tier_filter is None or info["tier"] == tier_filter:

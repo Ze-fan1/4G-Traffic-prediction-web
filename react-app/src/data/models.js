@@ -3,7 +3,7 @@ export const MODELS = [
   { cat: 'Statistical', model: 'Persistent 24h', mse: 1.9622, mae: 0.4930, rmse: 1.4008, mape: 55.70, acc: 0.4477 },
   { cat: 'Statistical', model: 'Historical Avg', mse: 2.7344, mae: 0.7216, rmse: 1.6536, mape: 124.36, acc: 0.3469 },
   { cat: 'Statistical', model: 'AutoARIMA', mse: 3.2567, mae: 0.6672, rmse: 1.8046, mape: 218.28, acc: 0.3285 },
-  { cat: 'Statistical', model: 'AutoAR', mse: 3.3104, mae: 0.6357, rmse: 1.8195, mape: 221.33, acc: 0.4131 },
+  { cat: 'Statistical', model: 'AutoAR', mse: 4.2247, mae: 0.9138, rmse: 2.0554, mape: 294.99, acc: 0.2077 },
   { cat: 'Statistical', model: 'LinearRegression', mse: 4.2247, mae: 0.9138, rmse: 2.0554, mape: 294.99, acc: 0.2077 },
   { cat: 'Tree', model: 'XGBoost', mse: 1.7634, mae: 0.5146, rmse: 1.3279, mape: 113.65, acc: 0.4729 },
   { cat: 'Baseline', model: '★ BaseModel', mse: 1.0615, mae: 0.3468, rmse: 1.0303, mape: 57.06, acc: 0.5901 },
@@ -21,9 +21,6 @@ export const MODELS = [
   { cat: 'RNN', model: 'SegRNN', mse: 1.5599, mae: 0.4446, rmse: 1.2489, mape: 131.92, acc: 0.5306 },
   { cat: 'SSM', model: 'Mamba', mse: 1.5671, mae: 0.4774, rmse: 1.2518, mape: 78.56, acc: 0.4718 },
   { cat: 'LLM', model: 'TimeLLM', mse: 2.1127, mae: 0.6420, rmse: 1.4535, mape: 120.50, acc: 0.4260 },
-  { cat: 'LLM', model: 'Chronos-tiny', mse: 2.0939, mae: 0.5140, rmse: 1.4470, mape: 120.59, acc: 0.4450 },
-  { cat: 'LLM', model: 'Chronos-small', mse: 2.1209, mae: 0.5011, rmse: 1.4563, mape: 98.14, acc: 0.4265 },
-  { cat: 'LLM', model: 'Chronos-base', mse: 1.8987, mae: 0.4939, rmse: 1.3779, mape: 43.72, acc: 0.4179 },
   { cat: 'LLM', model: 'Chronos2', mse: 1.4180, mae: 0.4294, rmse: 1.1908, mape: 28.79, acc: 0.4903 },
 ];
 

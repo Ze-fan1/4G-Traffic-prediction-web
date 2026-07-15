@@ -60,26 +60,27 @@ function startGlobalPoll(mKey, jobId, onUpdate) {
 
 function ChartBlock({ curves, chKey, label, isPreset, windowInfo, dashStyle }) {
   const ds = [];
-  // Ground truth — 黑色实线
+  // Ground truth — 黑色虚线
   if (curves?.[chKey]?.truth) {
     ds.push({
       label: '真实值',
       data: curves[chKey].truth,
       borderColor: '#18181B',
       borderWidth: 2,
+      borderDash: [6, 3],
       pointRadius: 0,
       tension: 0.35,
       order: 0,
     });
   }
-  // Prediction — 黑色 + 线型区分
+  // Prediction — 黑色实线
   if (curves?.[chKey]?.pred) {
     ds.push({
       label: label || '预测',
       data: curves[chKey].pred,
       borderColor: '#18181B',
       borderWidth: isPreset ? 2 : 1.8,
-      borderDash: dashStyle || (isPreset ? [6, 3] : []),
+      borderDash: dashStyle || [],
       pointRadius: 0,
       tension: 0.35,
       order: 1,
@@ -312,7 +313,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       {/* σ-space explanation */}
       <div className="p-2 rounded-lg bg-[#F5F5F5] border border-[#E5E5E5] text-[0.6rem] text-[#52525B] leading-relaxed">
         💡 <b>σ空间说明</b>：所有曲线经过 <b>StandardScaler 标准化</b>（减均值 ÷ 标准差）。
-        值 &gt; 0 = <b>高于</b>历史均值，值 &lt; 0 = <b>低于</b>历史均值。真实值 = 黑色实线，预置预测 = 黑色虚线，训练结果 = 不同线型区分次数。
+        值 &gt; 0 = <b>高于</b>历史均值，值 &lt; 0 = <b>低于</b>历史均值。真实值 = 黑色虚线，本地预测值 = 黑色实线，训练结果 = 不同线型区分次数。
       </div>
 
       {/* Charts */}
@@ -322,8 +323,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         {!presetLoading && presetData?.curves && (
           <div className="p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
             <ChartBlock curves={presetData.curves} chKey={chKey}
-              label={`📋 ${model} 预置`} isPreset={true} windowInfo={presetWindowInfo}
-              dashStyle={[6, 3]} />
+              label={`${model}本地预测值`} isPreset={true} windowInfo={presetWindowInfo} />
             {presetData.metrics_summary && (
               <div className="flex gap-3 text-[0.6rem] text-[#6B7280] mt-2 pt-2 border-t border-[#E5E7EB]">
                 <span>MSE: <b>{presetData.metrics_summary.mse}</b></span>
