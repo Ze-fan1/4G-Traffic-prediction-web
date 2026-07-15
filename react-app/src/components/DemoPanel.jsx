@@ -25,11 +25,51 @@ const WINDOW_OPTIONS = [
 
 const HISTORY_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6'];
 
+// ─── 每个模型的专属颜色（按类别分组，便于区分）───
+const MODEL_COLORS = {
+  // Statistical — 冷灰/紫
+  'Naive':           '#64748B',
+  'Persistent 24h':  '#78716C',
+  'Historical Avg':  '#A8A29E',
+  'AutoARIMA':       '#7C3AED',
+  'AutoAR':          '#A78BFA',
+  'LinearRegression': '#8B5CF6',
+  // Tree
+  'XGBoost':         '#65A30D',
+  // Baseline
+  '★ BaseModel':     '#374151',
+  // Transformer 系 — 红/橙
+  'PatchTST':        '#DC2626',
+  'iTransformer':    '#EA580C',
+  'Autoformer':      '#D97706',
+  'Transformer':     '#E11D48',
+  'Informer':        '#F59E0B',
+  // MLP — 蓝/青
+  'DLinear':         '#2563EB',
+  'LightTS':         '#0891B2',
+  'TSMixer':         '#0D9488',
+  'IBM TTM':         '#6366F1',
+  // CNN — 绿
+  'TimesNet':        '#059669',
+  'SCINet':          '#10B981',
+  // RNN
+  'SegRNN':          '#DB2777',
+  // SSM / LLM
+  'Mamba':           '#9333EA',
+  'TimeLLM':         '#4F46E5',
+  'Chronos2':        '#8B5CF6',
+};
+
+function getModelColor(model) {
+  return MODEL_COLORS[model] || '#6B7280';
+}
+
 // ─── 全局缓存（跨卡片持久化）───
-const modelHistoryCache = new Map();   // 已完成的训练结果 [{curves, metrics, label, curvesMeta}]
-const modelRunState = new Map();       // 正在运行的训练状态 {runJobId, runStatus, runEpoch, ...}
-const globalPollers = new Map();       // 后台轮询器 (不随组件卸载清除)
-const modelPredHistory = new Map();    // 上传预测历史 [{model, predictions, meta}]
+const modelHistoryCache = new Map();
+const modelRunState = new Map();
+const globalPollers = new Map();
+const modelPredHistory = new Map();
+const compareCurvesCache = new Map();  // 缓存其他模型的预置曲线，避免重复请求
 
 function stopGlobalPoll(mKey) {
   const p = globalPollers.get(mKey);
@@ -52,37 +92,50 @@ function startGlobalPoll(mKey, jobId, onUpdate) {
   globalPollers.set(mKey, interval);
 }
 
-const CHART_OPTIONS = {
-  responsive: true, maintainAspectRatio: false,
-  animation: { duration: 300 },
-  interaction: { mode: 'index', intersect: false },
-  plugins: {
-    legend: { position: 'bottom', labels: { boxWidth: 8, padding: 10, font: { size: 8 }, color: '#52525B' } },
-  },
-  scales: {
-    x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', font: { size: 8 } },
-         title: { display: true, text: '预测时刻 (h)', color: '#A1A1AA' } },
-    y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', font: { size: 8 } },
-         title: { display: true, text: '标准化值 (σ)', color: '#A1A1AA' } },
-  },
-};
-
-function ChartBlock({ curves, chKey, label, color, isPreset, windowInfo }) {
+function ChartBlock({ curves, chKey, label, color, isPreset, windowInfo, compareLines }) {
   const ds = [];
+  // Ground truth — always grey dashed
   if (curves?.[chKey]?.truth) {
     ds.push({
-      label: '真实值', data: curves[chKey].truth,
-      borderColor: isPreset ? '#A1A1AA' : '#18181B', borderWidth: 2.5,
-      pointRadius: 0, tension: 0.35, order: 0, borderDash: isPreset ? [4, 3] : [],
+      label: '真实值 (Ground Truth)',
+      data: curves[chKey].truth,
+      borderColor: '#9CA3AF',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      tension: 0.35,
+      order: 0,
+      borderDash: [4, 3],
     });
   }
+  // Current model's prediction — solid colored line
   if (curves?.[chKey]?.pred) {
     ds.push({
-      label: label || '预测', data: curves[chKey].pred,
-      borderColor: isPreset ? '#9CA3AF' : (color || '#3B82F6'),
-      backgroundColor: (isPreset ? '#9CA3AF' : (color || '#3B82F6')) + '20',
-      borderWidth: isPreset ? 1.8 : 2.5, pointRadius: 0, tension: 0.35, order: 1,
-      borderDash: isPreset ? [6, 4] : [],
+      label: label || '预测',
+      data: curves[chKey].pred,
+      borderColor: isPreset ? (color || '#6B7280') : (color || '#3B82F6'),
+      backgroundColor: (isPreset ? (color || '#6B7280') : (color || '#3B82F6')) + '20',
+      borderWidth: isPreset ? 2.5 : 2.5,
+      pointRadius: 0,
+      tension: 0.35,
+      order: 1,
+    });
+  }
+  // Compare model predictions — thinner, dashed/dotted, semi-transparent
+  if (compareLines && compareLines.length > 0) {
+    const DASH_STYLES = [[6, 3], [2, 2], [10, 4], [4, 2, 1, 2], [1, 1]];
+    compareLines.forEach((cl, i) => {
+      if (cl.data && cl.data.length > 0) {
+        ds.push({
+          label: cl.label,
+          data: cl.data,
+          borderColor: cl.color,
+          borderWidth: 1.5,
+          borderDash: DASH_STYLES[i % DASH_STYLES.length],
+          pointRadius: 0,
+          tension: 0.35,
+          order: 2,
+        });
+      }
     });
   }
   return (
@@ -100,8 +153,35 @@ function ChartBlock({ curves, chKey, label, color, isPreset, windowInfo }) {
   );
 }
 
+const CHART_OPTIONS = {
+  responsive: true, maintainAspectRatio: false,
+  animation: { duration: 300 },
+  interaction: { mode: 'index', intersect: false },
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        boxWidth: 10, padding: 6, font: { size: 7 },
+        color: '#52525B',
+        usePointStyle: false,
+        filter: (item) => item.text !== '', // hide empty labels
+      },
+    },
+    tooltip: {
+      titleFont: { size: 9 },
+      bodyFont: { size: 8 },
+    },
+  },
+  scales: {
+    x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', font: { size: 8 } },
+         title: { display: true, text: '预测时刻 (h)', color: '#A1A1AA' } },
+    y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#A1A1AA', font: { size: 8 } },
+         title: { display: true, text: '标准化值 (σ)', color: '#A1A1AA' } },
+  },
+};
+
 export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvailable, runType }) {
-  // ─── 从全局缓存恢复状态（切换卡片不丢失）───
+  // ─── 从全局缓存恢复状态 ───
   const saved = modelRunState.get(model) || {};
   const [presetData, setPresetData] = useState(null);
   const [presetLoading, setPresetLoading] = useState(false);
@@ -119,7 +199,15 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
   const [runHistory, setRunHistory] = useState(modelHistoryCache.get(model) || []);
   const mountedRef = useRef(true);
 
-  // 包装 setRunStatus 同时写入全局缓存
+  // ─── 对比模式 ───
+  const [compareEnabled, setCompareEnabled] = useState(false);
+  const [compareModels, setCompareModels] = useState(() => {
+    // 默认对比同类别的其他模型
+    const saved = sessionStorage.getItem('pg_compare');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [compareCurves, setCompareCurves] = useState([]);
+
   const setRunStatus = useCallback((v) => {
     setRunStatusRaw(v);
     const s = modelRunState.get(model) || {};
@@ -127,7 +215,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     modelRunState.set(model, s);
   }, [model]);
 
-  // ─── 每次状态变化 → 写入全局缓存 ───
+  // ─── 持久化状态到全局缓存 ───
   useEffect(() => {
     modelRunState.set(model, {
       runJobId, runStatus, runPhase, runEpoch, runTotalEpochs,
@@ -140,7 +228,43 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     return () => { mountedRef.current = false; };
   }, []);
 
-  // ─── 模型切换 → 加载预置 + 恢复训练/历史状态 ───
+  // ─── 获取可对比的模型列表 ───
+  const [allModels, setAllModels] = useState([]);
+  useEffect(() => {
+    fetch(`${API_BASE}/preset-models`)
+      .then(r => r.json())
+      .then(d => setAllModels((d.models || []).filter(m => m !== model)))
+      .catch(() => {});
+  }, [model]);
+
+  // ─── 加载对比模型的预置曲线 ───
+  useEffect(() => {
+    if (!compareEnabled || compareModels.length === 0) {
+      setCompareCurves([]);
+      return;
+    }
+    const promises = compareModels.map(async (m) => {
+      const cacheKey = `${m}_${presetWindow}`;
+      if (compareCurvesCache.has(cacheKey)) return compareCurvesCache.get(cacheKey);
+      try {
+        const r = await fetch(`${API_BASE}/preset-curves/${encodeURIComponent(m)}?window=${presetWindow}`);
+        const d = await r.json();
+        if (d.available && d.curves) {
+          const result = { model: m, curves: d.curves, color: getModelColor(m) };
+          compareCurvesCache.set(cacheKey, result);
+          return result;
+        }
+      } catch (e) { /* skip */ }
+      return null;
+    });
+    Promise.all(promises).then(results => {
+      setCompareCurves(results.filter(Boolean));
+    });
+  }, [compareEnabled, compareModels, presetWindow]);
+
+  useEffect(() => { sessionStorage.setItem('pg_compare', JSON.stringify(compareModels)); }, [compareModels]);
+
+  // ─── 模型切换 → 加载预置 + 恢复状态 ───
   useEffect(() => {
     const saved2 = modelRunState.get(model) || {};
     setRunJobId(saved2.runJobId || null);
@@ -161,7 +285,6 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     }).catch(err => console.warn('[DemoPanel] preset err:', err.message))
       .finally(() => setPresetLoading(false));
 
-    // 如果该模型有后台运行中的 job，重新绑定轮询回调到当前组件
     const savedJobId = saved2.runJobId;
     if (savedJobId && saved2.runStatus === 'running') {
       const pollKey = `${model}_${savedJobId}`;
@@ -200,7 +323,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     }
   }, [model]);
 
-  // ─── 窗口切换 → 只重载预置曲线 ───
+  // ─── 窗口切换 → 重载预置曲线 ───
   useEffect(() => {
     setPresetLoading(true); setPresetData(null);
     const url = `${API_BASE}/preset-curves/${encodeURIComponent(model)}?window=${presetWindow}`;
@@ -208,6 +331,9 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       if (d.available && d.curves) setPresetData(d);
     }).catch(err => console.warn('[DemoPanel] preset err:', err.message))
       .finally(() => setPresetLoading(false));
+    // 清除对比缓存，新窗口需要重新加载
+    compareCurvesCache.clear();
+    setCompareCurves([]);
   }, [presetWindow]);
 
   // ─── 开始运行 ───
@@ -276,12 +402,30 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     ? `窗口 #${presetData.window_idx}/${presetData.total_windows}`
     : '';
 
+  const modelColor = getModelColor(model);
+
+  // ─── 构建对比曲线数据集 ───
+  const compareLines = useMemo(() => {
+    return compareCurves.map(c => ({
+      label: c.model,
+      data: c.curves?.[chKey]?.pred || [],
+      color: c.color,
+    }));
+  }, [compareCurves, chKey]);
+
+  // ─── 推荐的对比模型（同类别的 top5）───
+  const suggestedCompare = useMemo(() => {
+    return allModels.slice(0, 8);
+  }, [allModels]);
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">{model}</h3>
+          <h3 className="text-sm font-semibold tracking-tight" style={{ color: modelColor }}>
+            ● {model}
+          </h3>
           <p className="text-[0.65rem] text-[#A1A1AA]">
             {RUN_TYPE_LABEL[runType] || RUN_TYPE_LABEL.train_dl}
           </p>
@@ -299,20 +443,73 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         </div>
       </div>
 
+      {/* σ-space explanation */}
+      <div className="p-2 rounded-lg bg-[#F0F9FF] border border-[#BAE6FD] text-[0.6rem] text-[#0369A1] leading-relaxed">
+        💡 <b>σ空间说明</b>：所有曲线经过 <b>StandardScaler 标准化</b>（减均值 ÷ 标准差）。
+        值 &gt; 0 表示<b>高于</b>历史平均水平，值 &lt; 0 表示<b>低于</b>平均水平。
+        这是时序预测领域的标准做法——将不同量纲的通道统一到同一尺度，确保各模型在公平条件下比较。
+      </div>
+
+      {/* Compare toggle */}
+      {allModels.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" checked={compareEnabled}
+              onChange={e => setCompareEnabled(e.target.checked)}
+              className="w-3 h-3 accent-[#3B82F6]" />
+            <span className="text-[0.65rem] text-[#52525B] font-medium">📊 多模型对比</span>
+          </label>
+          {compareEnabled && (
+            <select multiple value={compareModels}
+              onChange={e => setCompareModels(Array.from(e.target.selectedOptions, o => o.value))}
+              className="text-[0.6rem] px-2 py-1 rounded-lg border border-[rgba(0,0,0,0.06)] bg-white cursor-pointer"
+              style={{ minWidth: '140px', height: '24px' }}
+              title="按住 Ctrl 多选">
+              {suggestedCompare.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          )}
+          {compareEnabled && (
+            <span className="text-[0.55rem] text-[#A1A1AA]">按住 Ctrl 多选</span>
+          )}
+        </div>
+      )}
+
       {/* Charts */}
       <div className="space-y-2 max-h-[750px] overflow-y-auto">
         {presetLoading && <div className="h-[180px] flex items-center justify-center text-xs text-[#A1A1AA]">⏳ 加载中...</div>}
 
         {!presetLoading && presetData?.curves && (
           <div className="p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
-            <ChartBlock curves={presetData.curves} chKey={chKey}
-              label={`📋 ${model} 预置`} color="#9CA3AF" isPreset={true}
-              windowInfo={presetWindowInfo} />
+            <ChartBlock
+              curves={presetData.curves}
+              chKey={chKey}
+              label={`📋 ${model} 预置`}
+              color={modelColor}
+              isPreset={true}
+              windowInfo={presetWindowInfo}
+              compareLines={compareLines}
+            />
+            {/* Legend for compare lines */}
+            {compareLines.length > 0 && (
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                {compareLines.map(cl => (
+                  <span key={cl.label} className="text-[0.55rem] flex items-center gap-1">
+                    <span style={{
+                      display: 'inline-block', width: '12px', height: '2px',
+                      backgroundColor: cl.color, borderTop: '1px dashed ' + cl.color,
+                    }} />
+                    {cl.label}
+                  </span>
+                ))}
+              </div>
+            )}
             {presetData.metrics_summary && (
-              <div className="flex gap-3 text-[0.6rem] text-[#9CA3AF]">
-                MSE: <b>{presetData.metrics_summary.mse}</b> &nbsp;
-                MAE: <b>{presetData.metrics_summary.mae}</b> &nbsp;
-                RMSE: <b>{presetData.metrics_summary.rmse}</b>
+              <div className="flex gap-3 text-[0.6rem] text-[#9CA3AF] mt-2 pt-2 border-t border-[#E5E7EB]">
+                <span>MSE: <b>{presetData.metrics_summary.mse}</b></span>
+                <span>MAE: <b>{presetData.metrics_summary.mae}</b></span>
+                <span>RMSE: <b>{presetData.metrics_summary.rmse}</b></span>
               </div>
             )}
           </div>
@@ -320,8 +517,12 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
 
         {runHistory.map((entry, i) => (
           <div key={i} className="p-3 rounded-xl bg-white border border-[#DBEAFE]">
-            <ChartBlock curves={entry.curves} chKey={chKey}
-              label={`✅ 训练结果 ${entry.label}`} color={HISTORY_COLORS[i % HISTORY_COLORS.length]} />
+            <ChartBlock
+              curves={entry.curves}
+              chKey={chKey}
+              label={`✅ 训练结果 ${entry.label}`}
+              color={HISTORY_COLORS[i % HISTORY_COLORS.length]}
+            />
             {entry.metrics && (
               <div className="flex gap-2 text-[0.6rem] text-[#6B7280]">
                 {Object.entries(entry.metrics).slice(0, 5).map(([k, v]) =>
@@ -347,7 +548,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
               {runPhase === 'loading_model' ? '🔄 加载预训练模型...'
                 : isCurvePhase ? `📊 生成曲线... ${curveDone}/${curveTotal || '?'}`
                 : runType === 'inference_stat' ? `📊 计算中... (${runPct}%)`
-                : `🔥 Epoch ${runEpoch}/${runTotalEpochs || 10} · Loss ${runLoss.toFixed(4)} (${runPct}%)`}
+                : `🔥 Epoch ${runEpoch}/${runTotalEpochs || '?'} · Loss ${runLoss.toFixed(4)} (${runPct}%)`}
             </span>
             <button onClick={handleCancel} className="text-[0.6rem] px-2 py-0.5 rounded bg-[#EF4444] text-white hover:bg-[#DC2626] cursor-pointer">取消</button>
           </div>
