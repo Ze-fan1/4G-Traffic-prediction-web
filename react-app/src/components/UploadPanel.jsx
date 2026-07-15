@@ -24,7 +24,7 @@ const PRED_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC
 // 全局缓存：所有模型的预测叠加在同一张图上（切换卡片不丢失，上传新文件才清空）
 let globalPredHistory = [];
 
-export default function UploadPanel({ model, isAvailable }) {
+export default function UploadPanel() {
   const [dataFile, setDataFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [targetCol, setTargetCol] = useState('');
@@ -198,6 +198,10 @@ export default function UploadPanel({ model, isAvailable }) {
 
   return (
     <div className="space-y-4">
+      <div className="p-3 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E3A5F] leading-relaxed">
+        <b>通用预测</b>：适用于任意单个数值列。系统先把文件末尾一段留作回测，再使用完整历史预测未来。
+        此处不会把数据伪造成 4G 的 8 个特征，也不会调用左侧选中的 4G 基准权重。
+      </div>
       {/* Upload area */}
       <div
         className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
@@ -339,6 +343,11 @@ export default function UploadPanel({ model, isAvailable }) {
             <span className="text-[0.6rem] text-[#A1A1AA]">
               已预测 {predHistory.length} 个通用方法 · 目标列: {targetCol} · Y轴: [{sharedYMin.toFixed(1)}, {sharedYMax.toFixed(1)}]
             </span>
+            {predHistory[0]?.meta && (
+              <span className="text-[0.6rem] text-[#1D4ED8]">
+                留出回测 MAE: {predHistory[0].meta.validation_mae} · RMSE: {predHistory[0].meta.validation_rmse}
+              </span>
+            )}
           </div>
           {/* 模型列表 — 点击 × 删除单个 */}
           <div className="flex flex-wrap gap-1.5">

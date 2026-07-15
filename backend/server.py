@@ -614,13 +614,13 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
                       "space": "original", "note": "预训练模型直接使用原始值"},
         }
 
-    # ─── DL / 统计模型：σ空间对齐到8通道 ───
+    # ─── 4G-only models: require the real feature contract ───
     try:
-        windows, scaler, target_scaler_idx, target_model_ch, numeric_cols2 = build_windows_from_csv(df, target_col, pred_len)
+        window, scaler, target_model_ch = build_4g_window_from_upload(df, target_col)
     except ValueError as e:
         raise HTTPException(400, detail={"error": str(e)})
     try:
-        pred = infer(model_name, windows[-1], pred_len=pred_len)
+        pred = infer(model_name, window, pred_len=pred_len)
     except Exception as e:
         raise HTTPException(500, detail={"error": "inference_failed", "detail": str(e)})
 
@@ -629,17 +629,10 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
     if pred.ndim == 1:
         pred = pred.reshape(-1, 1)
 
-    n_out_channels = pred.shape[1]
-    if n_out_channels > len(numeric_cols2):
-        ch = min(target_model_ch, n_out_channels - 1)
-        target_pred = pred[:, ch]
-    else:
-        ch = target_scaler_idx if target_scaler_idx < n_out_channels else 0
-        target_pred = pred[:, ch]
-
-    raw_val = target_pred * scaler.scale_[target_scaler_idx] + scaler.mean_[target_scaler_idx]
+    ch = min(target_model_ch, pred.shape[1] - 1)
+    target_pred = pred[:, ch]
+    raw_val = target_pred * scaler.scale_[ch] + scaler.mean_[ch]
     raw_val = np.clip(raw_val, 0, None)
-    used_channels = [c for c in FEATURE_COLS if c in numeric_cols2]
 
     return {
         "model": model_name,
@@ -647,8 +640,9 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
         "meta": {
             "target_col": target_col, "pred_len": pred_len,
             "input_rows": len(df), "device": str(get_device()),
-            "channels_matched": used_channels,
+            "channels_matched": list(FEATURE_COLS),
             "total_model_channels": NUM_CHANNELS,
+            "protocol": "4g-feature-contract-v1",
         },
     }
 

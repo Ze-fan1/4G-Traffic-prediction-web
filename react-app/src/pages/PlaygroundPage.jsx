@@ -75,7 +75,7 @@ export default function PlaygroundPage() {
                     : 'bg-[#F5F5F5] text-[#52525B] hover:bg-[#E5E5E5]'
                 }`}
               >
-                📁 自定义数据
+                📁 通用预测
               </button>
             </div>
 
@@ -88,10 +88,7 @@ export default function PlaygroundPage() {
                 runType={runType}
               />
             ) : (
-              <UploadPanel
-                model={selectedModel}
-                isAvailable={isAvailable}
-              />
+              <UploadPanel />
             )}
           </div>
         </div>
