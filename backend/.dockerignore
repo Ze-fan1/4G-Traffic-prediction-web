@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.log
+../react-app/node_modules/
+../Time-Series-Library-main/checkpoints/
+../Time-Series-Library-main/results/*/*.pdf
+../Time-Series-Library-main/results/*/*.png
