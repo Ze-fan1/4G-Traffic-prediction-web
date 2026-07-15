@@ -1,0 +1,14 @@
+.git/
+.vscode/
+.claude/
+react-app/
+docs/
+plots/
+assets/
+**/__pycache__/
+**/*.pyc
+**/*.log
+Time-Series-Library-main/checkpoints/
+Time-Series-Library-main/checkpoints_backup_from_other/
+Time-Series-Library-main/results/**/*.pdf
+Time-Series-Library-main/results/**/*.png
