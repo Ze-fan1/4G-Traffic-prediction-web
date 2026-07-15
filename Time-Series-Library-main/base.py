@@ -11,7 +11,12 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 from models.utils.metrics import MAE, MSE, RMSE, MAPE, MSPE, calc_custom_acc
+from backend.benchmark_artifacts import write_benchmark_artifact
+from backend.four_g_protocol import FEATURE_COLS, build_windows, fit_training_scaler, load_observations
 
 DROP_COLS = ['date', 'ID编号', '厂商', '频段', '场景']
 SEQ_LEN, PRED_LEN, STEP = 24, 24, 3
@@ -33,7 +38,7 @@ def main():
     df_test  = pd.read_parquet(test_fp)
     df_base  = pd.read_parquet(base_fp)
 
-    # ── Same column processing as Dataset_Custom ──
+    # ── Same column processing as the trusted panel benchmark ──
     # 1. Drop non-numeric / static columns
     for col in ['ID编号', '厂商', '频段', '场景']:
         if col in df_train.columns:
@@ -56,15 +61,7 @@ def main():
     num_channels = len(feature_order)
     print(f">>>>>> Features ({num_channels}): {feature_order}")
 
-    # ── Fit scaler on training data (same as DL models) ──
-    scaler = StandardScaler()
-    scaler.fit(df_train[feature_order].values)
-
-    # ── Scale test data → ground truth in scaled space ──
-    test_arr = df_test[feature_order].values          # (16181, 8)
-    test_scaled = scaler.transform(test_arr)
-
-    # ── Align base predictions with test data ──
+    # ── Align external forecasts with the observed test rows ──
     # test and base are perfectly aligned (same dates, IDs, 16181 rows)
     # Extract forecast columns from base, reorder to match feature_order
     fc_map = {}
@@ -85,30 +82,16 @@ def main():
             else:
                 raise KeyError(f"Cannot find forecast column for feature '{feat}'")
 
-    pred_arr = np.column_stack(pred_vals_list)        # (16181, 8)
-    pred_scaled = scaler.transform(pred_arr)
-
-    # Verify alignment
-    assert len(test_scaled) == len(pred_scaled) == 16181, \
-        f"Row count mismatch: test={len(test_scaled)}, pred={len(pred_scaled)}"
-
-    # ── Create sliding windows (exact Dataset_Custom protocol) ──
-    N = len(test_scaled)
-    n_expected = (N - SEQ_LEN - PRED_LEN + 1) // STEP  # (16181 - 47) // 3 = 5378
-    indices = list(range(0, N - SEQ_LEN - PRED_LEN + 1, STEP))
-    assert len(indices) == n_expected == 5378, \
-        f"Window count mismatch: got {len(indices)}, expected {n_expected}"
-    print(f">>>>>> Sliding windows: {len(indices)} (seq={SEQ_LEN}, pred={PRED_LEN}, step={STEP})")
-
-    trues_list, preds_list = [], []
-    for i in indices:
-        Y = test_scaled[i + SEQ_LEN : i + SEQ_LEN + PRED_LEN]   # (24, 8)
-        P = pred_scaled[i + SEQ_LEN : i + SEQ_LEN + PRED_LEN]   # (24, 8)
-        trues_list.append(Y)
-        preds_list.append(P)
-
-    preds_3d = np.array(preds_list)  # (5378, 24, 8)
-    trues_3d = np.array(trues_list)  # (5378, 24, 8)
+    pred_arr = np.column_stack(pred_vals_list)
+    observed_train = load_observations('train')
+    observed_test = load_observations('test')
+    predicted_test = observed_test.copy()
+    predicted_test.loc[:, FEATURE_COLS] = pred_arr
+    scaler = fit_training_scaler(observed_train)
+    _, trues_3d, refs = build_windows(observed_test, scaler)
+    _, preds_3d, pred_refs = build_windows(predicted_test, scaler)
+    assert refs == pred_refs
+    print(f">>>>>> Panel-aware windows: {len(refs)} (seq={SEQ_LEN}, pred={PRED_LEN}, step={STEP})")
 
     # ── Metrics in scaled space ──
     mse  = MSE(preds_3d, trues_3d)
@@ -141,19 +124,21 @@ def main():
     print('\n' + '=' * 60)
     print('    EXTERNAL BASE MODEL (SCALED SPACE — DL compatible)')
     print('=' * 60)
-    print(f'Model: External_BaseModel | {len(indices)} windows')
+    print(f'Model: External_BaseModel | {len(refs)} windows')
     print(result_str)
     print('=' * 60)
 
     setting = 'External_BaseModel_4G_Base_v2_Verify'
-    with open('result_long_term_forecast.txt', 'a') as f:
+    library_root = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(library_root, 'result_long_term_forecast.txt'), 'a') as f:
         f.write(f'{setting}\n{result_str}\n\n')
 
     # ── CRITICAL: Save in SCALED space (same as DL models) ──
-    save_dir = f'results/{setting}'
+    save_dir = os.path.join(library_root, 'results', setting)
     os.makedirs(save_dir, exist_ok=True)
     np.save(os.path.join(save_dir, 'pred.npy'), preds_3d)   # scaled space ← KEY CHANGE
     np.save(os.path.join(save_dir, 'true.npy'), trues_3d)   # scaled space ← KEY CHANGE
+    write_benchmark_artifact(save_dir, '★ BaseModel', preds_3d, trues_3d, refs, 'external_base')
     print(f'Results saved to {save_dir}/  [SCALED space]')
     print('>>>>>> Base model evaluation complete!')
 

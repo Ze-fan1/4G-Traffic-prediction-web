@@ -136,7 +136,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
   const saved = modelRunState.get(model) || {};
   const [presetData, setPresetData] = useState(null);
   const [presetLoading, setPresetLoading] = useState(false);
-  const [presetWindow, setPresetWindow] = useState('4394');
+  const [presetWindow, setPresetWindow] = useState('0');
 
   const [runJobId, setRunJobId] = useState(saved.runJobId || null);
   const [runStatus, setRunStatusRaw] = useState(saved.runStatus || null);
