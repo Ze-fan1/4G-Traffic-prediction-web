@@ -1,10 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
-import { MODELS, CATS } from '../data/models';
 import { getPalette } from '../data/palette';
 
-export default function DataTable() {
-  const [sortCol, setSortCol] = useState('acc');
-  const [sortDir, setSortDir] = useState(-1);
+export default function DataTable({ models = [] }) {
+  const [sortCol, setSortCol] = useState('mse');
+  const [sortDir, setSortDir] = useState(1);
   const [activeCat, setActiveCat] = useState('all');
   const [search, setSearch] = useState('');
   const [shimmer, setShimmer] = useState(false);
@@ -13,15 +12,17 @@ export default function DataTable() {
   const handleSort = useCallback((col) => { setSortCol(prev => { if (prev === col) { setSortDir(d => -d); return prev; } setSortDir(col === 'acc' || col === 'model' ? -1 : 1); return col; }); triggerShimmer(); }, [triggerShimmer]);
 
   const filtered = useMemo(() => {
-    let data = [...MODELS];
+    let data = [...models];
     if (activeCat !== 'all') data = data.filter(m => m.cat === activeCat);
     if (search) { const q = search.toLowerCase(); data = data.filter(m => m.model.toLowerCase().includes(q) || m.cat.toLowerCase().includes(q)); }
     data.sort((a, b) => { let va = a[sortCol], vb = b[sortCol]; if (sortCol === 'cat') { va = a.cat; vb = b.cat; return sortDir === 1 ? va.localeCompare(vb) : vb.localeCompare(va); } if (sortCol === 'model') { va = a.model; vb = b.model; return sortDir === 1 ? va.localeCompare(vb) : vb.localeCompare(va); } return sortDir === 1 ? (va - vb) : (vb - va); });
     return data;
-  }, [activeCat, search, sortCol, sortDir]);
+  }, [models, activeCat, search, sortCol, sortDir]);
 
-  const bestMSE = Math.min(...MODELS.map(m => m.mse));
-  const bestACC = Math.max(...MODELS.filter(m => Number.isFinite(m.acc)).map(m => m.acc));
+  const bestMSE = models.length ? Math.min(...models.map(m => m.mse)) : null;
+  const scoredModels = models.filter(m => Number.isFinite(m.acc));
+  const bestACC = scoredModels.length ? Math.max(...scoredModels.map(m => m.acc)) : null;
+  const categories = [...new Set(models.map(m => m.cat))];
   const sortHeaders = ['cat', 'model', 'mse', 'mae', 'rmse', 'mape', 'acc'];
   const sortLabels = { cat: 'Category', model: 'Model', mse: 'MSE ↓', mae: 'MAE ↓', rmse: 'RMSE ↓', mape: 'MAPE% ↓', acc: 'Custom ACC ↑' };
 
@@ -32,7 +33,7 @@ export default function DataTable() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap gap-1.5">
             <span className={`chip ${activeCat === 'all' ? 'active' : ''}`} onClick={() => { setActiveCat('all'); triggerShimmer(); }}>All</span>
-            {CATS.map(cat => { const c = getPalette(MODELS.find(m => m.cat === cat)); return (<span key={cat} className={`chip ${activeCat === cat ? 'active' : ''}`} onClick={() => { setActiveCat(cat); triggerShimmer(); }}><span className="accent-dot" style={{ background: c.border }} />{cat}</span>); })}
+            {categories.map(cat => { const c = getPalette(models.find(m => m.cat === cat)); return (<span key={cat} className={`chip ${activeCat === cat ? 'active' : ''}`} onClick={() => { setActiveCat(cat); triggerShimmer(); }}><span className="accent-dot" style={{ background: c.border }} />{cat}</span>); })}
           </div>
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A1A1AA]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>

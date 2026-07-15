@@ -118,7 +118,7 @@ try:
         Y = test_y[i]
 
         X_t = torch.tensor(X, dtype=torch.float32).unsqueeze(0).to(device)
-        dec_inp = torch.zeros((1, args.label_len + pred_len, n_channels),
+        dec_inp = torch.zeros((1, args.label_len + args.pred_len, n_channels),
                               dtype=torch.float32).to(device)
         dec_inp[:, :args.label_len, :] = X_t[:, -args.label_len:, :]
 
@@ -126,7 +126,7 @@ try:
             out = model(X_t, None, dec_inp, None)
         if isinstance(out, tuple):
             out = out[0]
-        pred = out[0, -pred_len:, :].cpu().numpy()  # σ空间
+        pred = out[0, -args.pred_len:, :].cpu().numpy()  # σ空间
 
         all_pred_sigma.append(pred)
         all_true_sigma.append(Y)

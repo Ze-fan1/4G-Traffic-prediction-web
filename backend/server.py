@@ -3,6 +3,7 @@ FastAPI 后端 — 4G Traffic Model Playground
 功能: 统一运行(训练/推理)全部 23 模型 + 预置曲线 + 数据上传预测
 """
 import sys, os, time, threading, uuid, subprocess, re, json
+from pathlib import Path
 from project_paths import TSLIB_ROOT as TSLIB
 if str(TSLIB) not in sys.path:
     sys.path.insert(0, str(TSLIB))
@@ -17,6 +18,7 @@ from four_g_protocol import build_windows, fit_training_scaler, load_observation
 from model_loader import get_loaded_model_name, get_device, unload
 from inference_engine import infer
 from preset_curves import load_preset_curves, get_available_preset_models
+from benchmark_artifacts import write_benchmark_artifact
 from generic_forecast import SUPPORTED_METHODS, forecast as generic_forecast
 
 app = FastAPI(title="4G Traffic Playground API", version="0.4.0")
@@ -120,9 +122,11 @@ async def api_unload():
 async def api_list_models():
     result = []
     for name, info in MODEL_REGISTRY.items():
+        verified = load_preset_curves(name) is not None
         result.append({
             "name": name, "category": info["category"], "tier": info["tier"],
             "type": info["type"], "run_type": info.get("run_type", "unknown"),
+            "verified": verified,
             "available": info["tier"] == 1,
             "tier_reason": info.get("tier2_reason", ""),
         })
@@ -147,6 +151,25 @@ async def api_preset_curves(model_name: str, window: int = 0):
 async def api_preset_models():
     """列出有预置曲线的模型"""
     return {"models": get_available_preset_models()}
+
+
+@app.get("/api/benchmark-models")
+async def api_benchmark_models():
+    """Return only models with an auditable panel-benchmark artifact."""
+    models = []
+    for name in get_available_preset_models():
+        curve = load_preset_curves(name)
+        info = get_model_info(name)
+        if curve is None or info is None:
+            continue
+        models.append({
+            "model": name,
+            "cat": info["category"],
+            "metrics": curve["metrics_summary"],
+            "protocol": curve["protocol"],
+            "experiment_id": curve.get("experiment_id"),
+        })
+    return {"models": models, "protocol": "4g-panel-v1"}
 
 
 # ═══ Unified Run (训练/推理) ═══
@@ -322,9 +345,7 @@ def _start_inference_run(model_name, job_id, info, run_type):
                         pred = pred.reshape(-1, 1)
                     all_pred.append(pred)
                 except Exception as e:
-                    # 推理失败时用最后一个值填充
-                    fallback = np.tile(X[-1], (PRED_LEN, 1))
-                    all_pred.append(fallback)
+                    raise RuntimeError(f"Inference failed at benchmark window {i}: {e}") from e
 
                 if (i + 1) % 200 == 0 or i == n_windows - 1:
                     with _jobs_lock:
@@ -341,6 +362,12 @@ def _start_inference_run(model_name, job_id, info, run_type):
             t_flat = true_arr.reshape(-1, n_channels)
             mse = float(np.mean((t_flat - p_flat) ** 2))
             mae = float(np.mean(np.abs(t_flat - p_flat)))
+
+            # Persist first, so a completed job is immediately eligible for public views.
+            write_benchmark_artifact(
+                info["result_dir"], model_name, pred_arr, true_arr, refs,
+                run_kind=run_type,
+            )
 
             # Use the first reproducible panel window; the metadata identifies it.
             display_idx = 0

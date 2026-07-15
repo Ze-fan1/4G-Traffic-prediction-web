@@ -1,7 +1,8 @@
-import { MODELS } from '../data/models';
 import RevealCard from '../components/RevealCard';
+import useBenchmarkModels from '../hooks/useBenchmarkModels';
 
 export default function DetailsPage() {
+  const { models: MODELS } = useBenchmarkModels();
   return (
     <div className="page-enter mt-5 space-y-4">
       <RevealCard>

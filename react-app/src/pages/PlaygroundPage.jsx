@@ -22,7 +22,7 @@ export default function PlaygroundPage() {
 
   // 从后端 API 获取真实模型信息
   useEffect(() => {
-    fetch(`${API_BASE}/models`)
+    const loadModels = () => fetch(`${API_BASE}/models`)
       .then(res => res.json())
       .then(data => {
         const info = {};
@@ -32,6 +32,9 @@ export default function PlaygroundPage() {
       .catch(() => {
         setModelInfo({});
       });
+    loadModels();
+    const timer = window.setInterval(loadModels, 5000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const currentInfo = modelInfo[selectedModel] || {};
@@ -41,7 +44,7 @@ export default function PlaygroundPage() {
     model: info.name,
     cat: info.category,
     runType: info.run_type,
-    verified: ['Naive', 'Persistent 24h', '★ BaseModel'].includes(info.name),
+    verified: info.verified,
   }));
 
   return (

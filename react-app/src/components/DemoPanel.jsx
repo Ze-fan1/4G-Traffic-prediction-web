@@ -194,6 +194,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
           const upd = [...(modelHistoryCache.get(model) || []), entry];
           modelHistoryCache.set(model, upd);
           setRunHistory(upd);
+          window.dispatchEvent(new Event('benchmark-updated'));
           setRunStatus('done');
           setRunJobId(null);
           const s = modelRunState.get(model) || {};
@@ -258,6 +259,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
           const upd = [...(modelHistoryCache.get(model) || []), entry];
           modelHistoryCache.set(model, upd);
           setRunHistory(upd);
+          window.dispatchEvent(new Event('benchmark-updated'));
           setRunStatus('done');
           setRunJobId(null);
           stopGlobalPoll(pollKey);

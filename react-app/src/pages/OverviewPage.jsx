@@ -1,16 +1,19 @@
-import { MODELS, CATS } from '../data/models';
 import { CAT_PALETTE } from '../data/palette';
 import ModelMarquee from '../components/ModelMarquee';
 import RevealCard from '../components/RevealCard';
+import useBenchmarkModels from '../hooks/useBenchmarkModels';
 
 function getCat(model) {
   return CAT_PALETTE[model.cat] || CAT_PALETTE['Statistical'];
 }
 
 export default function OverviewPage() {
-  const scoredModels = MODELS.filter(model => Number.isFinite(model.acc));
-  const sorted = [...scoredModels].sort((a, b) => b.acc - a.acc);
-  const maxACC = sorted[0]?.acc ?? null;
+  const { models: benchmarkModels } = useBenchmarkModels();
+  const MODELS = benchmarkModels;
+  const CATS = [...new Set(MODELS.map(model => model.cat))];
+  const sorted = [...MODELS].sort((a, b) => a.mse - b.mse);
+  const bestMSE = sorted[0]?.mse ?? null;
+  const bestMSEModel = [...MODELS].sort((a, b) => a.mse - b.mse)[0];
   const legendItems = CATS.map(cat => {
     const c = CAT_PALETTE[cat];
     const n = MODELS.filter(m => m.cat === cat).length;
@@ -74,16 +77,16 @@ export default function OverviewPage() {
 
       {/* ═══ 28 模型滚动展示墙 — 参考 Devraj Chatribin ═══ */}
       <div className="relative z-10 mt-2 mb-6">
-        <ModelMarquee />
+        <ModelMarquee models={MODELS} />
       </div>
 
       {/* ═══ Hero 卡片 — 等高统一排版 ═══ */}
       <div className="relative z-10 mt-6 mb-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: '最优模型', value: '★ BaseModel', color: 'var(--accent)' },
-            { label: '最高 ACC', value: '0.5853', color: 'var(--accent)' },
-            { label: '最低 MSE', value: '1.5664' },
+            { label: '最低 MSE 模型', value: bestMSEModel?.model || '待评测', color: 'var(--accent)' },
+            { label: '最低 MSE', value: bestMSEModel ? bestMSEModel.mse.toFixed(4) : '—', color: 'var(--accent)' },
+            { label: '已验证模型', value: String(MODELS.length) },
             { label: '实验协议', value: '同小区 · 连续48h · 24→24' },
           ].map((item, i) => (
             <RevealCard key={i}>
@@ -103,21 +106,21 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* ═══ ACC 排名 ═══ */}
+      {/* ═══ MSE ranking ═══ */}
       <RevealCard className="mb-5">
         <div className="card p-5">
           <h3 className="text-sm font-semibold tracking-tight mb-3">
-            Custom ACC 排名 · 全部 {MODELS.length} 模型
+            MSE 排名 · 全部 {MODELS.length} 已验证模型
           </h3>
           <div className="space-y-1.5">
-            {sorted.map((m, i) => {
+            {sorted.length ? sorted.map((m, i) => {
               const c = getCat(m);
-              const w = (m.acc / maxACC) * 100;
+              const w = bestMSE ? (bestMSE / m.mse) * 100 : 0;
               return (
                 <div
                   key={m.model}
                   className="flex items-center gap-2.5 text-xs group cursor-default"
-                  title={`${m.model} · ${m.cat}\nMSE: ${m.mse.toFixed(3)}  ACC: ${Number.isFinite(m.acc) ? m.acc.toFixed(4) : '待计算'}`}
+                  title={`${m.model} · ${m.cat}\nMSE: ${m.mse.toFixed(4)} · MAE: ${m.mae.toFixed(4)}`}
                 >
                   <span className="w-4 text-right font-mono text-[#A1A1AA] flex-shrink-0" style={{ fontSize: '0.65rem' }}>
                     {i + 1}
@@ -142,11 +145,11 @@ export default function OverviewPage() {
                     className="w-12 text-right font-mono font-medium flex-shrink-0"
                     style={{ fontSize: '0.72rem', color: c.text }}
                   >
-                    {Number.isFinite(m.acc) ? m.acc.toFixed(4) : '待计算'}
+                    {m.mse.toFixed(4)}
                   </span>
                 </div>
               );
-            })}
+            }) : <p className="text-xs text-[#A1A1AA]">暂时没有完成严格评测的模型。</p>}
           </div>
 
           {/* 图例 */}

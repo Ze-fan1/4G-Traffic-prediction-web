@@ -1,9 +1,8 @@
-import { MODELS } from '../data/models';
 import { getPalette } from '../data/palette';
 
-export default function ModelMarquee() {
+export default function ModelMarquee({ models = [] }) {
   // 按 ACC 排序
-  const sorted = [...MODELS].sort((a, b) => b.acc - a.acc);
+  const sorted = [...models].sort((a, b) => (b.acc ?? -Infinity) - (a.acc ?? -Infinity));
 
   return (
     <div className="relative w-full overflow-hidden py-3" style={{ maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)' }}>
