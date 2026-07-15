@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { CHANNELS } from '../data/channels';
@@ -123,6 +123,15 @@ const CHART_OPTIONS = {
   },
 };
 
+// ─── 共享：处理 job 完成 ───
+function buildDoneEntry(d, model) {
+  const winMeta = d.curves_meta;
+  const labelSuffix = winMeta
+    ? `#${(modelHistoryCache.get(model) || []).length + 1} · 窗口#${winMeta.window_idx}/${winMeta.total_windows}`
+    : `#${(modelHistoryCache.get(model) || []).length + 1}`;
+  return { curves: d.curves, metrics: d.metrics, ts: Date.now(), label: labelSuffix, curvesMeta: winMeta };
+}
+
 export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvailable, runType }) {
   const saved = modelRunState.get(model) || {};
   const [presetData, setPresetData] = useState(null);
@@ -147,6 +156,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     modelRunState.set(model, s);
   }, [model]);
 
+  // 持久化运行状态
   useEffect(() => {
     modelRunState.set(model, {
       runJobId, runStatus, runPhase, runEpoch, runTotalEpochs,
@@ -154,7 +164,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     });
   }, [model, runJobId, runStatus, runPhase, runEpoch, runTotalEpochs, runLoss, error, curveDone, curveTotal]);
 
-  // ─── 模型切换 → 加载预置 + 恢复状态 ───
+  // ─── 模型切换 → 加载预置 + 恢复状态（不再启动轮询） ───
   useEffect(() => {
     const saved2 = modelRunState.get(model) || {};
     setRunJobId(saved2.runJobId || null);
@@ -175,24 +185,12 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     }).catch(err => console.warn('[DemoPanel] preset err:', err.message))
       .finally(() => setPresetLoading(false));
 
-    const savedJobId = saved2.runJobId;
-    if (savedJobId && saved2.runStatus === 'running') {
-      const pollKey = `${model}_${savedJobId}`;
-      startGlobalPoll(pollKey, savedJobId, (d) => {
-        setRunEpoch(d.epoch || 0);
-        setRunLoss(d.loss || 0);
-        if (d.total_epochs > 0) setRunTotalEpochs(d.total_epochs);
-        setRunPhase(d.phase || 'training');
-        if (d.phase === 'curves' || d.phase === 'inference') {
-          setCurveDone(d.curve_done || 0);
-          setCurveTotal(d.curve_total || 0);
-        }
+    // 只做一次性状态检查（不启动持续轮询），如果 job 已结束则处理
+    if (saved2.runJobId && saved2.runStatus === 'running') {
+      const jobId = saved2.runJobId;
+      fetch(`${API_BASE}/job/${jobId}`).then(r => r.json()).then(d => {
         if (d.status === 'done' && d.curves) {
-          const winMeta = d.curves_meta;
-          const labelSuffix = winMeta
-            ? `#${(modelHistoryCache.get(model) || []).length + 1} · 窗口#${winMeta.window_idx}/${winMeta.total_windows}`
-            : `#${(modelHistoryCache.get(model) || []).length + 1}`;
-          const entry = { curves: d.curves, metrics: d.metrics, ts: Date.now(), label: labelSuffix, curvesMeta: winMeta };
+          const entry = buildDoneEntry(d, model);
           const upd = [...(modelHistoryCache.get(model) || []), entry];
           modelHistoryCache.set(model, upd);
           setRunHistory(upd);
@@ -209,8 +207,16 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
           setRunStatus('cancelled');
           setRunJobId(null);
         }
-      });
+        // 如果仍在 'running'，用户需要手动点按钮重新训练
+      }).catch(() => {}); // 网络错误忽略
     }
+
+    // 清理：切换模型时停止该模型的旧轮询
+    return () => {
+      for (const [key] of globalPollers) {
+        if (key.startsWith(`${model}_`)) stopGlobalPoll(key);
+      }
+    };
   }, [model]);
 
   // ─── 窗口切换 → 重载预置曲线 ───
@@ -225,6 +231,11 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
 
   // ─── 开始运行 ───
   const handleRun = useCallback(async () => {
+    // 先清除该模型所有旧轮询
+    for (const [key] of globalPollers) {
+      if (key.startsWith(`${model}_`)) stopGlobalPoll(key);
+    }
+
     setError(null); setRunEpoch(0); setRunTotalEpochs(0); setRunLoss(0);
     setCurveDone(0); setCurveTotal(0); setRunStatus('running');
     setRunPhase(runType === 'inference_stat' || runType === 'inference_pretrained' ? 'inference' : 'training');
@@ -243,11 +254,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         setRunPhase(d.phase || 'training');
         if (d.phase === 'curves' || d.phase === 'inference') { setCurveDone(d.curve_done || 0); setCurveTotal(d.curve_total || 0); }
         if (d.status === 'done' && d.curves) {
-          const winMeta = d.curves_meta;
-          const labelSuffix = winMeta
-            ? `#${(modelHistoryCache.get(model) || []).length + 1} · 窗口#${winMeta.window_idx}/${winMeta.total_windows}`
-            : `#${(modelHistoryCache.get(model) || []).length + 1}`;
-          const entry = { curves: d.curves, metrics: d.metrics, ts: Date.now(), label: labelSuffix, curvesMeta: winMeta };
+          const entry = buildDoneEntry(d, model);
           const upd = [...(modelHistoryCache.get(model) || []), entry];
           modelHistoryCache.set(model, upd);
           setRunHistory(upd);
