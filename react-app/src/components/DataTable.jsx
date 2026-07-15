@@ -21,7 +21,7 @@ export default function DataTable() {
   }, [activeCat, search, sortCol, sortDir]);
 
   const bestMSE = Math.min(...MODELS.map(m => m.mse));
-  const bestACC = Math.max(...MODELS.map(m => m.acc));
+  const bestACC = Math.max(...MODELS.filter(m => Number.isFinite(m.acc)).map(m => m.acc));
   const sortHeaders = ['cat', 'model', 'mse', 'mae', 'rmse', 'mape', 'acc'];
   const sortLabels = { cat: 'Category', model: 'Model', mse: 'MSE ↓', mae: 'MAE ↓', rmse: 'RMSE ↓', mape: 'MAPE% ↓', acc: 'Custom ACC ↑' };
 
@@ -54,8 +54,8 @@ export default function DataTable() {
                 <td className={`font-mono text-[0.72rem] ${m.mse === bestMSE ? 'text-emerald-600 font-medium' : ''}`}>{m.mse.toFixed(4)}</td>
                 <td className="font-mono text-[0.72rem]">{m.mae.toFixed(4)}</td>
                 <td className="font-mono text-[0.72rem]">{m.rmse.toFixed(4)}</td>
-                <td className={`font-mono text-[0.72rem] ${m.mape > 150 ? 'text-amber-600' : ''}`}>{m.mape.toFixed(2)}</td>
-                <td className={`font-mono text-[0.72rem] font-semibold ${m.acc === bestACC ? 'text-[#3B82F6]' : m.acc > 0.5 ? 'text-emerald-600' : ''}`}>{m.acc.toFixed(4)}</td>
+                <td className={`font-mono text-[0.72rem] ${m.mape > 150 ? 'text-amber-600' : ''}`}>{Number.isFinite(m.mape) ? m.mape.toFixed(2) : '—'}</td>
+                <td className={`font-mono text-[0.72rem] font-semibold ${m.acc === bestACC ? 'text-[#3B82F6]' : m.acc > 0.5 ? 'text-emerald-600' : ''}`}>{Number.isFinite(m.acc) ? m.acc.toFixed(4) : '—'}</td>
               </tr>
             ); })}
             {filtered.length === 0 && <tr><td colSpan="7" className="text-center py-12 text-[#A1A1AA] text-xs">No models match.</td></tr>}

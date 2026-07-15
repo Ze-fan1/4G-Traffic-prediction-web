@@ -37,6 +37,12 @@ export default function PlaygroundPage() {
   const currentInfo = modelInfo[selectedModel] || {};
   const isAvailable = (currentInfo.tier || 1) === 1;
   const runType = currentInfo.run_type || 'unknown';
+  const selectorModels = Object.values(modelInfo).map(info => ({
+    model: info.name,
+    cat: info.category,
+    runType: info.run_type,
+    verified: ['Naive', 'Persistent 24h', '★ BaseModel'].includes(info.name),
+  }));
 
   return (
     <div className="page-enter mt-4">
@@ -46,6 +52,7 @@ export default function PlaygroundPage() {
           <ModelSelector
             selectedModel={selectedModel}
             onSelect={setSelectedModel}
+            models={selectorModels}
             modelTiers={Object.fromEntries(
               Object.entries(modelInfo).map(([k, v]) => [k, v.tier])
             )}
