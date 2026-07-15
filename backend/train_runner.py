@@ -3,7 +3,9 @@ import sys, os, json, time
 
 MODEL_NAME = sys.argv[1]
 JOB_ID = sys.argv[2]
-TSLIB = r'c:\Users\Admin\Desktop\网络流量预测项目新修改2\Time-Series-Library-main'
+from project_paths import TSLIB_ROOT
+
+TSLIB = str(TSLIB_ROOT)
 
 sys.path.insert(0, TSLIB)
 sys.path.insert(0, os.path.join(TSLIB, 'models'))
@@ -25,8 +27,8 @@ class Args: pass
 args = Args()
 args.task_name = 'long_term_forecast'; args.is_training = 1
 args.model = MODEL_NAME; args.model_id = '4G_Live'
-args.data = 'custom'; args.root_path = 'data_provider/4g_traffic'
-args.data_path = 'df_4g_base_100.parquet'
+args.data = '4g_panel'; args.root_path = os.path.join(TSLIB, 'data_provider', '4g_traffic')
+args.data_path = 'df_4g_train_100.parquet'
 args.features = 'M'; args.target = '总流量'; args.freq = 'h'
 args.checkpoints = './checkpoints/'
 args.seq_len = 24; args.label_len = 12; args.pred_len = 24

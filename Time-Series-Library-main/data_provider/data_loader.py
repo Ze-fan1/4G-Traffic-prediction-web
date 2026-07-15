@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import glob
@@ -23,6 +24,16 @@ from huggingface_hub import hf_hub_download
 warnings.filterwarnings('ignore')
 
 HUGGINGFACE_REPO = "thuml/Time-Series-Library"
+
+# The benchmark project owns its panel-data contract; the upstream library keeps
+# its generic Dataset_Custom implementation unchanged for non-4G datasets.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from backend.four_g_protocol import (
+    DATE_COL, FEATURE_COLS, build_window_refs, fit_training_scaler,
+    load_observations, split_continuous_segments, temporal_train_validation_split,
+)
 
 class Dataset_ETT_hour(Dataset):
     def __init__(self, args, root_path, flag='train', size=None,
@@ -380,6 +391,81 @@ class Dataset_Custom(Dataset):
         if base_len <= 0:
             return 0
         return base_len // self.step
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
+
+
+class Dataset_4GPanel(Dataset):
+    """Panel-aware 4G benchmark dataset.
+
+    Each item belongs to exactly one cell and one hourly-continuous segment.
+    Validation is the later portion of every training-cell segment; test data is
+    never used while fitting the scaler or selecting an early-stopping epoch.
+    """
+    def __init__(self, args, root_path, flag='train', size=None,
+                 features='M', target='总流量', scale=True, timeenc=0,
+                 freq='h', seasonal_patterns=None, **_):
+        if flag not in ('train', 'val', 'test'):
+            raise ValueError(f"Unsupported 4G panel flag: {flag}")
+        self.args = args
+        self.flag = flag
+        self.seq_len, self.label_len, self.pred_len = size
+        self.features = features
+        self.target = target
+        self.scale = scale
+        self.timeenc = timeenc
+        self.freq = freq
+        self.step = 1 if flag in ('train', 'val') else 3
+        self._segments = []
+        self._refs = []
+        self.__read_data__()
+
+    def __read_data__(self):
+        train_full = load_observations('train')
+        train_frame, validation_frame = temporal_train_validation_split(train_full)
+        self.scaler = fit_training_scaler(train_frame)
+        if self.flag == 'train':
+            frame = train_frame
+        elif self.flag == 'val':
+            frame = validation_frame
+        else:
+            frame = load_observations('test')
+
+        feature_indices = list(range(len(FEATURE_COLS)))
+        if self.features == 'S':
+            feature_indices = [list(FEATURE_COLS).index(self.target)]
+
+        for cell_id, segment in split_continuous_segments(frame):
+            values = segment.loc[:, FEATURE_COLS].to_numpy(dtype=np.float64)
+            values = self.scaler.transform(values) if self.scale else values
+            values = values[:, feature_indices].astype(np.float32)
+            dates = pd.to_datetime(segment[DATE_COL])
+            if self.timeenc == 0:
+                marks = np.column_stack((
+                    dates.dt.month, dates.dt.day, dates.dt.weekday, dates.dt.hour,
+                )).astype(np.float32)
+            else:
+                marks = time_features(pd.DatetimeIndex(dates), freq=self.freq).transpose(1, 0).astype(np.float32)
+            segment_idx = len(self._segments)
+            self._segments.append((values, marks))
+            span = self.seq_len + self.pred_len
+            for start in range(0, len(values) - span + 1, self.step):
+                self._refs.append((segment_idx, start))
+
+        if not self._refs:
+            raise ValueError(f"No valid {self.flag} windows for the configured 4G panel horizon")
+
+    def __getitem__(self, index):
+        segment_idx, start = self._refs[index]
+        values, marks = self._segments[segment_idx]
+        s_end = start + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end = s_end + self.pred_len
+        return values[start:s_end], values[r_begin:r_end], marks[start:s_end], marks[r_begin:r_end]
+
+    def __len__(self):
+        return len(self._refs)
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)

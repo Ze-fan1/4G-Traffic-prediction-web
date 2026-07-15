@@ -13,7 +13,10 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from project_paths import DATA_DIR
+try:
+    from .project_paths import DATA_DIR
+except ImportError:  # Supports direct execution from backend/ during development.
+    from project_paths import DATA_DIR
 
 DATE_COL = "date"
 CELL_ID_COL = "ID编号"

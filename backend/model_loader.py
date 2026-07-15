@@ -8,8 +8,7 @@ import numpy as np
 from pathlib import Path
 from model_registry import get_model_info
 
-TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
-TSLIB_ROOT = TSLIB_ROOT.resolve()
+from project_paths import TSLIB_ROOT
 MODELS_DIR = TSLIB_ROOT / "models"
 
 sys.path.insert(0, str(TSLIB_ROOT))
@@ -105,9 +104,9 @@ def load(model_name: str):
             is_training = 0
             model_id = "4G"
             model = model_name
-            data = "custom"
+            data = "4g_panel"
             root_path = str(TSLIB_ROOT / "data_provider" / "4g_traffic")
-            data_path = "df_4g_base_100.parquet"
+            data_path = "df_4g_train_100.parquet"
             features = "M"
             target = "总流量"
             freq = "h"
