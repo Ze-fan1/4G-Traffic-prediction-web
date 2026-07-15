@@ -4,8 +4,18 @@
 import numpy as np
 import pandas as pd
 from io import BytesIO
-from sklearn.preprocessing import StandardScaler
 from pathlib import Path
+from sklearn.preprocessing import StandardScaler
+
+from four_g_protocol import (
+    FEATURE_COLS,
+    PRED_LEN,
+    SEQ_LEN,
+    STEP,
+    build_windows,
+    fit_training_scaler,
+    load_observations,
+)
 
 # 确保 Excel 引擎可用
 try:
@@ -13,44 +23,14 @@ try:
 except ImportError:
     openpyxl = None
 
-TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
-TSLIB_ROOT = TSLIB_ROOT.resolve()
-DATA_DIR = TSLIB_ROOT / "data_provider" / "4g_traffic"
-
-SEQ_LEN = 24
-PRED_LEN = 24
-STEP = 3
 NUM_CHANNELS = 8
-
-FEATURE_COLS = [
-    "erab流量", "pdcch利用率", "pdsch利用率", "pusch利用率",
-    "上行流量", "下行流量", "总流量", "有效连接数"
-]
 
 
 def load_test_data():
-    """加载测试集 + 在训练集上拟合的 Scaler"""
-    train_fp = DATA_DIR / "df_4g_train_100.parquet"
-    test_fp = DATA_DIR / "df_4g_test_100.parquet"
-
-    if not train_fp.exists() or not test_fp.exists():
-        raise FileNotFoundError(f"数据文件不存在: {train_fp} / {test_fp}")
-
-    df_train = pd.read_parquet(train_fp)
-    df_test = pd.read_parquet(test_fp)
-
-    train_cols = [c for c in FEATURE_COLS if c in df_train.columns]
-    test_cols = [c for c in FEATURE_COLS if c in df_test.columns]
-
-    if len(train_cols) < NUM_CHANNELS:
-        skip = ["ID编号", "厂商", "频段", "场景", "date"]
-        train_cols = [c for c in df_train.columns if c not in skip]
-        test_cols = [c for c in df_test.columns if c not in skip]
-
-    scaler = StandardScaler()
-    scaler.fit(df_train[train_cols].values)
-
-    return df_train, df_test, scaler, train_cols
+    """Load benchmark observations and a scaler fitted on training observations."""
+    df_train = load_observations("train")
+    df_test = load_observations("test")
+    return df_train, df_test, fit_training_scaler(df_train), list(FEATURE_COLS)
 
 
 def get_test_window(window_idx: int, channel_idx: int):
@@ -59,29 +39,17 @@ def get_test_window(window_idx: int, channel_idx: int):
     返回: X (24, 8), Y (24, 8), scaler, cols
     """
     _, df_test, scaler, cols = load_test_data()
-    test_data = scaler.transform(df_test[cols].values)
-
-    start = window_idx * STEP
-    X = test_data[start : start + SEQ_LEN]
-    Y = test_data[start + SEQ_LEN : start + SEQ_LEN + PRED_LEN]
-
-    return X, Y, scaler, cols
+    X, Y, _ = build_windows(df_test, scaler)
+    if not 0 <= window_idx < len(X):
+        raise IndexError(f"Test window index {window_idx} is out of range")
+    return X[window_idx], Y[window_idx], scaler, cols
 
 
 def get_all_test_windows():
-    """获取全部测试窗口"""
+    """Return all valid within-cell, continuous benchmark windows."""
     _, df_test, scaler, cols = load_test_data()
-    test_data = scaler.transform(df_test[cols].values)
-
-    n_windows = (len(test_data) - SEQ_LEN - PRED_LEN) // STEP + 1
-    windows = []
-    for i in range(n_windows):
-        start = i * STEP
-        X = test_data[start : start + SEQ_LEN]
-        Y = test_data[start + SEQ_LEN : start + SEQ_LEN + PRED_LEN]
-        windows.append((X, Y))
-
-    return windows, scaler, cols
+    X, Y, refs = build_windows(df_test, scaler)
+    return list(zip(X, Y)), scaler, cols, refs
 
 
 def parse_csv(file_bytes: bytes) -> dict:
