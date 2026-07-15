@@ -12,6 +12,8 @@ from four_g_protocol import (
     load_observations,
 )
 from inference_engine import _infer_statistical
+from generic_forecast import forecast
+from generic_forecast import forecast
 
 
 def _frame(rows):
@@ -59,3 +61,15 @@ class FourGProtocolTests(unittest.TestCase):
         autoar = _infer_statistical("autoar", series, pred_len=6)
         linear = _infer_statistical("linear_regression", series, pred_len=6)
         self.assertFalse(np.allclose(autoar, linear))
+
+    def test_generic_forecast_backtests_and_predicts_in_original_scale(self):
+        values = np.sin(np.arange(60) / 3) + 10
+        result = forecast(pd.DataFrame({"custom_metric": values}), "custom_metric", 6, "autoar")
+        self.assertEqual(result.prediction.shape, (6,))
+        self.assertGreaterEqual(result.validation_mae, 0)
+
+    def test_generic_forecast_backtests_and_predicts_in_original_scale(self):
+        values = np.sin(np.arange(60) / 3) + 10
+        result = forecast(pd.DataFrame({"custom_metric": values}), "custom_metric", 6, "autoar")
+        self.assertEqual(result.prediction.shape, (6,))
+        self.assertGreaterEqual(result.validation_mae, 0)

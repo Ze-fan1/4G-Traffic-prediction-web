@@ -146,6 +146,24 @@ def parse_file(file_bytes: bytes, filename: str) -> dict:
     return result
 
 
+def build_4g_window_from_upload(df: pd.DataFrame, target_col: str):
+    """Build a real 4G model input without fabricating missing channels."""
+    if target_col not in FEATURE_COLS:
+        raise ValueError("The 4G target must be one of the eight benchmark features")
+    missing = [column for column in FEATURE_COLS if column not in df.columns]
+    if missing:
+        raise ValueError("4G prediction requires all eight benchmark features; use generic prediction for other data")
+    if len(df) < SEQ_LEN:
+        raise ValueError(f"4G prediction requires at least {SEQ_LEN} rows")
+    numeric = df.loc[:, FEATURE_COLS].apply(pd.to_numeric, errors="coerce")
+    if numeric.isna().any().any():
+        raise ValueError("All eight 4G features must be numeric")
+    scaler = fit_training_scaler(load_observations("train"))
+    values = scaler.transform(numeric.to_numpy(dtype=np.float64)).astype(np.float32)
+    channel = list(FEATURE_COLS).index(target_col)
+    return values[-SEQ_LEN:], scaler, channel
+
+
 def build_windows_from_csv(df: pd.DataFrame, target_col: str, pred_len: int):
     """
     从上传的 CSV DataFrame 构建推理窗口，自动对齐到模型8通道。

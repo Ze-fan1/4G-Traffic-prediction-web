@@ -6,6 +6,12 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 const PRED_LEN_OPTIONS = [6, 12, 18, 24];
+const GENERIC_METHODS = [
+  { value: 'autoar', label: '自动自回归' },
+  { value: 'linear_trend', label: '线性趋势' },
+  { value: 'xgboost', label: '梯度提升树' },
+  { value: 'naive', label: '最后值基线' },
+];
 
 const ALLOWED_EXTS = ['.csv', '.tsv', '.txt', '.xlsx', '.xls', '.parquet'];
 
@@ -23,7 +29,7 @@ export default function UploadPanel({ model, isAvailable }) {
   const [filePreview, setFilePreview] = useState(null);
   const [targetCol, setTargetCol] = useState('');
   const [predLen, setPredLen] = useState(24);
-  const [numChannels, setNumChannels] = useState(0);
+  const [method, setMethod] = useState('autoar');
   const [predHistory, setPredHistory] = useState(globalPredHistory);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -109,9 +115,9 @@ export default function UploadPanel({ model, isAvailable }) {
       formData.append('data_file', dataFile);
       formData.append('target_col', targetCol);
       formData.append('pred_len', String(predLen));
-      formData.append('num_channels', String(numChannels));
+      formData.append('method', method);
 
-      const res = await fetch(`${API_BASE}/predict/${encodeURIComponent(model)}`, {
+      const res = await fetch(`${API_BASE}/generic-predict`, {
         method: 'POST',
         body: formData,
       });
@@ -121,14 +127,15 @@ export default function UploadPanel({ model, isAvailable }) {
       }
       const data = await res.json();
       updatePredHistory(prev => [...prev.filter(e => e.model !== model), {
-        model, predictions: data.predictions, meta: data.meta, ts: Date.now()
+        model: GENERIC_METHODS.find(item => item.value === method)?.label || method,
+        predictions: data.predictions, meta: data.meta, ts: Date.now()
       }]);
     } catch (e) {
       setError(e.message);
     } finally {
       setIsLoading(false);
     }
-  }, [dataFile, targetCol, predLen, model]);
+  }, [dataFile, targetCol, predLen, method]);
 
   const downloadAllCSV = useCallback(() => {
     if (predHistory.length === 0) return;
@@ -148,14 +155,6 @@ export default function UploadPanel({ model, isAvailable }) {
     const map = { csv: 'CSV', tsv: 'TSV', xlsx: 'Excel', xls: 'Excel', parquet: 'Parquet' };
     return map[fmt] || fmt?.toUpperCase() || '?';
   };
-
-  if (!isAvailable) {
-    return (
-      <div className="p-4 text-center text-xs text-[#A1A1AA]">
-        🔒 该模型暂不支持自定义数据上传
-      </div>
-    );
-  }
 
   // 构建叠加图表：所有模型预测在同一张图上
   const allPreds = predHistory.flatMap(e => e.predictions);
@@ -292,15 +291,14 @@ export default function UploadPanel({ model, isAvailable }) {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#A1A1AA]">通道数:</span>
+            <span className="text-xs text-[#A1A1AA]">通用方法:</span>
             <select
-              value={numChannels}
-              onChange={(e) => setNumChannels(Number(e.target.value))}
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
               className="text-xs px-3 py-1.5 rounded-xl border border-[rgba(0,0,0,0.05)] bg-white cursor-pointer"
             >
-              <option value={0}>自动检测</option>
-              {[1, 2, 4, 8, 12, 16].map(n => (
-                <option key={n} value={n}>{n}</option>
+              {GENERIC_METHODS.map(item => (
+                <option key={item.value} value={item.value}>{item.label}</option>
               ))}
             </select>
           </div>
@@ -339,7 +337,7 @@ export default function UploadPanel({ model, isAvailable }) {
               🗑️ 清空全部
             </button>
             <span className="text-[0.6rem] text-[#A1A1AA]">
-              已预测 {predHistory.length} 个模型 · 目标列: {targetCol} · Y轴: [{sharedYMin.toFixed(1)}, {sharedYMax.toFixed(1)}]
+              已预测 {predHistory.length} 个通用方法 · 目标列: {targetCol} · Y轴: [{sharedYMin.toFixed(1)}, {sharedYMax.toFixed(1)}]
             </span>
           </div>
           {/* 模型列表 — 点击 × 删除单个 */}

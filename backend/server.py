@@ -12,11 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 
 from model_registry import get_model_info, MODEL_REGISTRY
-from data_pipeline import parse_file, build_windows_from_csv, FEATURE_COLS, NUM_CHANNELS
+from data_pipeline import parse_file, build_4g_window_from_upload, build_windows_from_csv, FEATURE_COLS, NUM_CHANNELS
 from four_g_protocol import build_windows, fit_training_scaler, load_observations
 from model_loader import get_loaded_model_name, get_device, unload
 from inference_engine import infer
 from preset_curves import load_preset_curves, get_available_preset_models
+from generic_forecast import SUPPORTED_METHODS, forecast as generic_forecast
+from generic_forecast import SUPPORTED_METHODS, forecast as generic_forecast
 
 app = FastAPI(title="4G Traffic Playground API", version="0.4.0")
 
@@ -523,6 +525,31 @@ async def api_parse_file(data_file: UploadFile = File(...)):
 
 
 # ═══ Custom Prediction ═══
+@app.post("/api/generic-predict")
+async def generic_predict(data_file: UploadFile = File(...), target_col: str = Form(...),
+                          pred_len: int = Form(24), method: str = Form("autoar")):
+    """Forecast a user series on its own scale with a holdout backtest."""
+    if method not in SUPPORTED_METHODS:
+        raise HTTPException(400, detail={"error": "unsupported_method", "supported": SUPPORTED_METHODS})
+    try:
+        parsed = parse_file(await data_file.read(), data_file.filename or "data.csv")
+        result = generic_forecast(parsed["df"], target_col, int(pred_len), method)
+    except ValueError as exc:
+        raise HTTPException(400, detail={"error": "invalid_series", "detail": str(exc)})
+    return {
+        "method": method,
+        "predictions": [round(float(value), 6) for value in result.prediction],
+        "meta": {
+            "target_col": target_col, "pred_len": int(pred_len),
+            "input_rows": result.train_rows + result.validation_rows,
+            "validation_rows": result.validation_rows,
+            "validation_mae": round(result.validation_mae, 6),
+            "validation_rmse": round(result.validation_rmse, 6),
+            "space": "original", "protocol": "generic-series-v1",
+        },
+    }
+
+
 @app.post("/api/predict/{model_name}")
 async def predict(model_name: str, data_file: UploadFile = File(...),
                    target_col: str = Form(...), pred_len: int = Form(24),
@@ -622,6 +649,34 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
             "input_rows": len(df), "device": str(get_device()),
             "channels_matched": used_channels,
             "total_model_channels": NUM_CHANNELS,
+        },
+    }
+
+
+@app.post("/api/generic-predict")
+async def generic_predict(data_file: UploadFile = File(...), target_col: str = Form(...),
+                          pred_len: int = Form(24), method: str = Form("autoar")):
+    """Forecast a user series on its own scale with a visible holdout backtest."""
+    if method not in SUPPORTED_METHODS:
+        raise HTTPException(400, detail={"error": "unsupported_method", "supported": SUPPORTED_METHODS})
+    fn = data_file.filename or "data.csv"
+    try:
+        parsed = parse_file(await data_file.read(), fn)
+        result = generic_forecast(parsed["df"], target_col, int(pred_len), method)
+    except ValueError as exc:
+        raise HTTPException(400, detail={"error": "invalid_series", "detail": str(exc)})
+    return {
+        "method": method,
+        "predictions": [round(float(value), 6) for value in result.prediction],
+        "meta": {
+            "target_col": target_col,
+            "pred_len": int(pred_len),
+            "input_rows": result.train_rows + result.validation_rows,
+            "validation_rows": result.validation_rows,
+            "validation_mae": round(result.validation_mae, 6),
+            "validation_rmse": round(result.validation_rmse, 6),
+            "space": "original",
+            "protocol": "generic-series-v1",
         },
     }
 
