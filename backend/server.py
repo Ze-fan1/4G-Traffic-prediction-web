@@ -18,7 +18,6 @@ from model_loader import get_loaded_model_name, get_device, unload
 from inference_engine import infer
 from preset_curves import load_preset_curves, get_available_preset_models
 from generic_forecast import SUPPORTED_METHODS, forecast as generic_forecast
-from generic_forecast import SUPPORTED_METHODS, forecast as generic_forecast
 
 app = FastAPI(title="4G Traffic Playground API", version="0.4.0")
 
@@ -132,8 +131,8 @@ async def api_list_models():
 
 # ═══ Preset Curves ═══
 @app.get("/api/preset-curves/{model_name}")
-async def api_preset_curves(model_name: str, window: int = 4394):
-    """获取模型预置 benchmark 曲线，默认窗口 #4394"""
+async def api_preset_curves(model_name: str, window: int = 0):
+    """Return a validated panel-benchmark curve by its reproducible index."""
     info = get_model_info(model_name)
     if info is None:
         raise HTTPException(404, detail={"error": "unknown_model"})

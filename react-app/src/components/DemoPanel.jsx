@@ -18,9 +18,9 @@ const RUN_TYPE_LABEL = {
 };
 
 const WINDOW_OPTIONS = [
-  { value: '4394', label: '窗口 #4394 (代表性)' },
-  { value: '100',  label: '窗口 #100' },
-  { value: '0',    label: '窗口 #0' },
+  { value: '0', label: '有效窗口 #0' },
+  { value: '100', label: '有效窗口 #100' },
+  { value: '1000', label: '有效窗口 #1000' },
 ];
 
 // 多次训练结果用不同线型区分（全黑）
@@ -292,7 +292,9 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     ? (curveTotal > 0 ? Math.round((curveDone / curveTotal) * 100) : 0)
     : (runTotalEpochs > 0 ? Math.round((runEpoch / runTotalEpochs) * 100) : 0);
 
-  const presetWindowInfo = presetData ? `窗口 #${presetData.window_idx}/${presetData.total_windows}` : '';
+  const presetWindowInfo = presetData
+    ? `窗口 #${presetData.window_idx}/${presetData.total_windows}${presetData.window_ref ? ` · 小区 ${presetData.window_ref.cell_id} · ${presetData.window_ref.start}` : ''}`
+    : '';
 
   return (
     <div className="space-y-4">

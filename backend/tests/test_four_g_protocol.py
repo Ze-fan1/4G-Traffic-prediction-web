@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 import unittest
+import json
+import tempfile
+from pathlib import Path
 
 from four_g_protocol import (
     CELL_ID_COL,
@@ -13,6 +16,8 @@ from four_g_protocol import (
 )
 from inference_engine import _infer_statistical
 from generic_forecast import forecast
+from benchmark_artifacts import write_benchmark_artifact
+from four_g_protocol import WindowRef
 from generic_forecast import forecast
 
 
@@ -67,6 +72,16 @@ class FourGProtocolTests(unittest.TestCase):
         result = forecast(pd.DataFrame({"custom_metric": values}), "custom_metric", 6, "autoar")
         self.assertEqual(result.prediction.shape, (6,))
         self.assertGreaterEqual(result.validation_mae, 0)
+
+    def test_artifact_records_window_provenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            refs = [WindowRef("cell-a", pd.Timestamp("2025-01-01"), 0)]
+            manifest = write_benchmark_artifact(
+                directory, "Demo", np.zeros((1, 2, 8)), np.ones((1, 2, 8)), refs, "test"
+            )
+            saved = json.loads((Path(directory) / "benchmark_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(saved["protocol"], "4g-panel-v1")
+            self.assertEqual(manifest["window_refs"][0]["cell_id"], "cell-a")
 
     def test_generic_forecast_backtests_and_predicts_in_original_scale(self):
         values = np.sin(np.arange(60) / 3) + 10

@@ -14,6 +14,8 @@ os.chdir(TSLIB)
 import torch
 import numpy as np
 from four_g_protocol import FEATURE_COLS, build_windows, fit_training_scaler, load_observations
+from benchmark_artifacts import write_benchmark_artifact
+from model_registry import get_model_info
 
 print(f'JOB:{JOB_ID}:MODEL:{MODEL_NAME}', flush=True)
 print(f'GPU:{torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"}', flush=True)
@@ -126,8 +128,8 @@ try:
             out = out[0]
         pred = out[0, -pred_len:, :].cpu().numpy()  # σ空间
 
-        all_pred_sigma.append(pred.reshape(-1))
-        all_true_sigma.append(Y.reshape(-1))
+        all_pred_sigma.append(pred)
+        all_true_sigma.append(Y)
 
         if i == display_idx:
             display_pred_sigma = pred.copy()
@@ -139,8 +141,8 @@ try:
     print(f'CURVE_DONE:{total_windows}', flush=True)
 
     # ─── 整体指标（σ空间，全部窗口）───
-    all_p = np.array(all_pred_sigma)
-    all_t = np.array(all_true_sigma)
+    all_p = np.asarray(all_pred_sigma)
+    all_t = np.asarray(all_true_sigma)
     mse_val  = float(np.mean((all_t - all_p) ** 2))
     mae_val  = float(np.mean(np.abs(all_t - all_p)))
     rmse_val = float(np.sqrt(mse_val))
@@ -170,6 +172,13 @@ try:
         "val_loss":   round(mae_val, 4),
         "test_loss":  round(rmse_val, 4),
     }
+    info = get_model_info(MODEL_NAME)
+    if info and info.get("result_dir"):
+        write_benchmark_artifact(
+            info["result_dir"], MODEL_NAME, all_p, all_t, test_refs,
+            run_kind="local_retrain",
+            extra={"epochs": args.train_epochs, "seed": args.seed},
+        )
     print(f'METRICS:{json.dumps(metrics_info)}', flush=True)
     print(f'TRAIN_DONE:{setting}', flush=True)
 

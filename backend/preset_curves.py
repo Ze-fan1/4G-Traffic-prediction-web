@@ -71,6 +71,7 @@ def load_preset_curves(model_name: str, window_idx: int | None = DEFAULT_WINDOW)
         "source": "reproducible_4g_benchmark",
         "protocol": PROTOCOL_VERSION,
         "experiment_id": manifest.get("experiment_id"),
+        "window_ref": manifest.get("window_refs", [])[idx] if manifest.get("window_refs") else None,
     }
 
 
