@@ -2,10 +2,7 @@
 统一推理引擎 — 按模型类型分发推理逻辑
 """
 import sys
-from pathlib import Path
-
-TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
-TSLIB_ROOT = TSLIB_ROOT.resolve()
+from project_paths import TSLIB_ROOT
 sys.path.insert(0, str(TSLIB_ROOT))
 sys.path.insert(0, str(TSLIB_ROOT / "models"))  # utils/ 在 models/utils/ 中
 
@@ -101,8 +98,8 @@ def _infer_statistical(method: str, X: np.ndarray, pred_len: int) -> np.ndarray:
                 preds[b, :, c] = series[-1]
 
             elif method == "persistent":
-                offset = max(0, seq_len - pred_len)
-                preds[b, :, c] = series[offset]
+                history = series[-min(seq_len, pred_len):]
+                preds[b, :, c] = np.resize(history, pred_len)
 
             elif method == "historical_avg":
                 avg = np.mean(series)
@@ -111,20 +108,36 @@ def _infer_statistical(method: str, X: np.ndarray, pred_len: int) -> np.ndarray:
             elif method == "autoarima":
                 try:
                     from statsmodels.tsa.arima.model import ARIMA
-                    model = ARIMA(series, order=(2, 0, 1))
-                    fitted = model.fit()
-                    forecast = fitted.forecast(steps=pred_len)
-                    preds[b, :, c] = forecast
+                    # Small BIC grid: automatic model order selection without
+                    # pretending that a single fixed ARIMA order is automatic.
+                    candidates = []
+                    for p in range(0, min(4, seq_len - 2)):
+                        for q in range(0, min(4, seq_len - 2)):
+                            if p == 0 and q == 0:
+                                continue
+                            try:
+                                fitted = ARIMA(series, order=(p, 0, q)).fit()
+                                candidates.append((fitted.bic, fitted))
+                            except Exception:
+                                continue
+                    if not candidates:
+                        raise ValueError("No ARIMA candidate could be fitted")
+                    preds[b, :, c] = min(candidates, key=lambda item: item[0])[1].forecast(steps=pred_len)
                 except Exception:
-                    preds[b, :, c] = np.mean(series)
+                    preds[b, :, c] = series[-1]
 
             elif method == "autoar":
-                from sklearn.linear_model import LinearRegression
-                lr = LinearRegression()
-                t = np.arange(seq_len).reshape(-1, 1)
-                lr.fit(t, series)
-                t_future = np.arange(seq_len, seq_len + pred_len).reshape(-1, 1)
-                preds[b, :, c] = lr.predict(t_future)
+                from statsmodels.tsa.ar_model import AutoReg, ar_select_order
+                try:
+                    selection = ar_select_order(series, maxlag=min(8, seq_len // 3), ic="bic", old_names=False)
+                    lags = selection.ar_lags
+                    if lags is None or len(lags) == 0:
+                        raise ValueError("No autoregressive lags selected")
+                    preds[b, :, c] = AutoReg(series, lags=lags, old_names=False).fit().predict(
+                        start=seq_len, end=seq_len + pred_len - 1, dynamic=False
+                    )
+                except Exception:
+                    preds[b, :, c] = series[-1]
 
             elif method == "linear_regression":
                 from sklearn.linear_model import LinearRegression

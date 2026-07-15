@@ -11,6 +11,7 @@ from four_g_protocol import (
     fit_training_scaler,
     load_observations,
 )
+from inference_engine import _infer_statistical
 
 
 def _frame(rows):
@@ -52,3 +53,9 @@ class FourGProtocolTests(unittest.TestCase):
     def test_base_file_is_rejected_as_observations(self):
         with self.assertRaisesRegex(ValueError, "external forecasts"):
             load_observations("base")
+
+    def test_autoregression_is_not_the_linear_trend_baseline(self):
+        series = np.array([0.0, 1.0] * 12, dtype=np.float64).reshape(1, 24, 1)
+        autoar = _infer_statistical("autoar", series, pred_len=6)
+        linear = _infer_statistical("linear_regression", series, pred_len=6)
+        self.assertFalse(np.allclose(autoar, linear))

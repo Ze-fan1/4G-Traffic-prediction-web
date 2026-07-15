@@ -3,10 +3,7 @@ FastAPI 后端 — 4G Traffic Model Playground
 功能: 统一运行(训练/推理)全部 23 模型 + 预置曲线 + 数据上传预测
 """
 import sys, os, time, threading, uuid, subprocess, re, json
-from pathlib import Path
-
-TSLIB = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
-TSLIB = TSLIB.resolve()
+from project_paths import TSLIB_ROOT as TSLIB
 if str(TSLIB) not in sys.path:
     sys.path.insert(0, str(TSLIB))
 
@@ -15,7 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 
 from model_registry import get_model_info, MODEL_REGISTRY
-from data_pipeline import parse_file, build_windows_from_csv, load_test_data, FEATURE_COLS, NUM_CHANNELS
+from data_pipeline import parse_file, build_windows_from_csv, FEATURE_COLS, NUM_CHANNELS
+from four_g_protocol import build_windows, fit_training_scaler, load_observations
 from model_loader import get_loaded_model_name, get_device, unload
 from inference_engine import infer
 from preset_curves import load_preset_curves, get_available_preset_models
@@ -294,11 +292,13 @@ def _start_inference_run(model_name, job_id, info, run_type):
                 from inference_engine import infer as _infer_single
                 _ = _infer_single  # ensure imports
 
-            # 加载验证数据
-            _, df_test, scaler, cols = load_test_data()
-            test_data = scaler.transform(df_test[cols].values)
+            # Benchmark windows never cross a cell ID or a missing hour.
+            df_train = load_observations("train")
+            df_test = load_observations("test")
+            test_x, test_y, refs = build_windows(df_test, fit_training_scaler(df_train))
+            cols = FEATURE_COLS
             n_channels = len(cols)
-            n_windows = (len(test_data) - SEQ_LEN - PRED_LEN) // STEP + 1
+            n_windows = len(test_x)
 
             with _jobs_lock:
                 _jobs[job_id]["total"] = n_windows
@@ -309,9 +309,8 @@ def _start_inference_run(model_name, job_id, info, run_type):
             all_true = []
 
             for i in range(n_windows):
-                start = i * STEP
-                X = test_data[start:start + SEQ_LEN]
-                Y = test_data[start + SEQ_LEN:start + SEQ_LEN + PRED_LEN]
+                X = test_x[i]
+                Y = test_y[i]
                 all_true.append(Y)
 
                 try:
@@ -342,8 +341,8 @@ def _start_inference_run(model_name, job_id, info, run_type):
             mse = float(np.mean((t_flat - p_flat) ** 2))
             mae = float(np.mean(np.abs(t_flat - p_flat)))
 
-            # 单窗口曲线（窗口 #4394，与 prediction_curves.js 对齐）
-            display_idx = min(4394, n_windows - 1)
+            # Use the first reproducible panel window; the metadata identifies it.
+            display_idx = 0
 
             curves = {}
             for ch_idx in range(n_channels):
@@ -355,7 +354,13 @@ def _start_inference_run(model_name, job_id, info, run_type):
 
             with _jobs_lock:
                 _jobs[job_id]["curves"] = curves
-                _jobs[job_id]["curves_meta"] = {"window_idx": display_idx, "total_windows": n_windows}
+                _jobs[job_id]["curves_meta"] = {
+                    "window_idx": display_idx,
+                    "total_windows": n_windows,
+                    "cell_id": refs[display_idx].cell_id,
+                    "start": refs[display_idx].start.isoformat(),
+                    "protocol": "4g-panel-v1",
+                }
                 _jobs[job_id]["metrics"] = {"mse": round(mse, 4), "mae": round(mae, 4),
                                              "rmse": round(np.sqrt(mse), 4)}
                 _jobs[job_id]["status"] = "done"

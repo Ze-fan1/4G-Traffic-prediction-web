@@ -1,13 +1,7 @@
 """
 26 模型完整注册表 — 每个模型的类型、checkpoint 路径、类别、Tier 等级、运行方式
 """
-import os
-from pathlib import Path
-
-TSLIB_ROOT = Path(__file__).resolve().parent.parent / ".." / "网络流量预测项目新修改2" / "Time-Series-Library-main"
-CHECKPOINTS_DIR = TSLIB_ROOT / "checkpoints"
-DATA_DIR = TSLIB_ROOT / "data_provider" / "4g_traffic"
-RESULTS_DIR = TSLIB_ROOT / "results"
+from project_paths import CHECKPOINTS_DIR, DATA_DIR, RESULTS_DIR, TSLIB_ROOT
 
 MODEL_REGISTRY = {
     # ═══ Statistical — 纯计算，无需模型文件 ═══

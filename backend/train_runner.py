@@ -13,8 +13,7 @@ os.chdir(TSLIB)
 
 import torch
 import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from four_g_protocol import FEATURE_COLS, build_windows, fit_training_scaler, load_observations
 
 print(f'JOB:{JOB_ID}:MODEL:{MODEL_NAME}', flush=True)
 print(f'GPU:{torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"}', flush=True)
@@ -93,30 +92,19 @@ try:
         if args.device.type == 'cuda':
             torch.cuda.empty_cache()
 
-    # ─── 2. 生成 σ空间预测曲线（与 prediction_curves.js 窗口 #4394 对齐）───
-    DATA_DIR = os.path.join(TSLIB, 'data_provider', '4g_traffic')
-    FEATURE_COLS = ["erab流量", "pdcch利用率", "pdsch利用率", "pusch利用率",
-                    "上行流量", "下行流量", "总流量", "有效连接数"]
-    DISPLAY_WINDOW = 4394  # 与 prediction_curves.js 一致的 representative window
-
-    df_train = pd.read_parquet(os.path.join(DATA_DIR, 'df_4g_train_100.parquet'))
-    df_val   = pd.read_parquet(os.path.join(DATA_DIR, 'df_4g_test_100.parquet'))
-
-    num_cols = [c for c in FEATURE_COLS if c in df_val.columns]
-    scaler = StandardScaler()
-    scaler.fit(df_train[num_cols].values)
-
-    val_data = scaler.transform(df_val[num_cols].values)
-    seq_len, pred_len, step = 24, 24, 3
-    total_windows = (len(val_data) - seq_len - pred_len) // step + 1
-    display_idx = min(DISPLAY_WINDOW, total_windows - 1)
+    # ─── 2. Evaluate on the same panel-aware test windows as the benchmark ───
+    df_train = load_observations('train')
+    df_test = load_observations('test')
+    test_x, test_y, test_refs = build_windows(df_test, fit_training_scaler(df_train))
+    total_windows = len(test_x)
+    display_idx = 0
 
     print(f'CURVE_START:WINDOWS:{total_windows}', flush=True)
 
     model = exp.model
     model.eval()
     device = args.device
-    n_channels = len(num_cols)
+    n_channels = len(FEATURE_COLS)
 
     all_pred_sigma = []  # σ空间
     all_true_sigma = []
@@ -124,9 +112,8 @@ try:
     display_true_sigma = None
 
     for i in range(total_windows):
-        start = i * step
-        X = val_data[start:start + seq_len]
-        Y = val_data[start + seq_len:start + seq_len + pred_len]
+        X = test_x[i]
+        Y = test_y[i]
 
         X_t = torch.tensor(X, dtype=torch.float32).unsqueeze(0).to(device)
         dec_inp = torch.zeros((1, args.label_len + pred_len, n_channels),
@@ -160,13 +147,19 @@ try:
 
     # ─── 单窗口曲线输出（σ空间）───
     curves = {}
-    for ch_idx in range(len(num_cols)):
-        curves[num_cols[ch_idx]] = {
+    for ch_idx, channel_name in enumerate(FEATURE_COLS):
+        curves[channel_name] = {
             "pred":  [round(float(v), 4) for v in display_pred_sigma[:, ch_idx]],
             "truth": [round(float(v), 4) for v in display_true_sigma[:, ch_idx]],
         }
 
-    curves["_meta"] = {"window_idx": display_idx, "total_windows": total_windows}
+    curves["_meta"] = {
+        "window_idx": display_idx,
+        "total_windows": total_windows,
+        "cell_id": test_refs[display_idx].cell_id,
+        "start": test_refs[display_idx].start.isoformat(),
+        "protocol": "4g-panel-v1",
+    }
     print(f'CURVES:{json.dumps(curves)}', flush=True)
     # 把指标也一并输出
     metrics_info = {
