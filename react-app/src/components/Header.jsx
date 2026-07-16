@@ -56,7 +56,7 @@ export default function Header({ activeTab, onTabChange }) {
         {/* Right */}
         <div className="hidden lg:flex items-center gap-2 text-xs text-[#A1A1AA]">
           <span className="accent-dot" style={{ background: '#22C55E' }} />
-          {MODELS.length} Models
+          23 Models
         </div>
       </div>
     </header>

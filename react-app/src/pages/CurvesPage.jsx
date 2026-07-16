@@ -59,15 +59,24 @@ function PredictionCurvesChart({ channelIdx, hiddenModels, onToggleModel, onTogg
           {allVisible ? '取消全选' : '全选'}
         </button>
         <div className="flex flex-wrap gap-1.5">
-          {models.map((name) => {
+          {models.filter(name => !hiddenModels.has(name)).map((name) => {
             const globalIdx = ALL_MODELS.indexOf(name);
             return (
-              <span key={name} className={`chip ${hiddenModels.has(name) ? '' : 'active'}`} style={{ fontSize: '0.68rem' }} onClick={() => onToggleModel(name)}>
+              <span key={name} className="text-[0.65rem] px-2.5 py-1 rounded-full border inline-flex items-center gap-1"
+                style={{ borderColor: MODEL_COLORS_8[globalIdx % MODEL_COLORS_8.length], color: MODEL_COLORS_8[globalIdx % MODEL_COLORS_8.length] }}>
                 <span className="accent-dot" style={{ background: MODEL_COLORS_8[globalIdx % MODEL_COLORS_8.length], width: 6, height: 6 }} />{name}
+                <button type="button" onClick={() => onToggleModel(name)}
+                  className="ml-0.5 w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[0.55rem] hover:bg-black/10 cursor-pointer leading-none"
+                  title={`隐藏 ${name}`}>×</button>
               </span>
             );
           })}
         </div>
+        {hiddenModels.size > 0 && <div className="flex flex-wrap items-center gap-1.5 w-full mt-1">
+          <span className="text-[0.62rem] text-[#A1A1AA]">添加模型:</span>
+          {models.filter(name => hiddenModels.has(name)).map(name => <button key={name} type="button" onClick={() => onToggleModel(name)}
+            className="text-[0.62rem] px-2 py-0.5 rounded-full border border-[#D4D4D8] text-[#71717A] bg-white hover:border-[#A1A1AA]">+ {name}</button>)}
+        </div>}
       </div>
       <div className="chart-box-lg"><Line data={data} options={options} /></div>
     </>
@@ -113,24 +122,8 @@ function MultiWindowChart() {
 }
 
 export default function CurvesPage() {
-  return (
-    <div className="page-enter mt-5">
-      <RevealCard>
-        <div className="card p-6 space-y-3">
-          <h2 className="text-lg font-semibold">多模型曲线正在按新协议重评测</h2>
-          <p className="text-sm text-[#52525B] leading-relaxed">
-            旧页面使用了将 100 个小区直接拼接的 5,378 个窗口，可能跨小区或跨时间缺口，已不再作为可信比较展示。
-            新协议只保留同一小区内连续 48 小时片段，形成 24 小时输入到 24 小时预测的 3,514 个有效测试窗口。
-          </p>
-          <p className="text-sm text-[#52525B] leading-relaxed">
-            已完成 Naive、Persistent 24h 与外部 BaseModel 的可追溯重评测；其余模型完成相同协议重评测并写入实验清单后，会自动恢复到曲线页。
-            当前可在“模型中心 → 数据验证”查看已验证曲线、窗口所属小区和起始时间。
-          </p>
-        </div>
-      </RevealCard>
-    </div>
-  );
-/* Legacy visualizations are retained below during the staged re-evaluation. */
+  // Historical GitHub benchmark view retained for reference while the live
+  // panel-aware benchmark is rebuilt model by model.
   const [channelIdx, setChannelIdx] = useState(() => {
     const v = sessionStorage.getItem('cp_channel');
     return v != null ? parseInt(v) : 1;
@@ -172,11 +165,12 @@ export default function CurvesPage() {
         <div className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
+            <p className="text-[0.62rem] text-[#D97706] font-medium mb-1">历史 GitHub 基准视图（旧 5,378 窗口协议）</p>
             <h3 className="text-sm font-semibold tracking-tight">
               24小时预测曲线对比 <span style={{color:'#16A34A',fontSize:'0.7rem',fontWeight:700}}>【标准化空间 σ】</span>
             </h3>
             <p className="text-[0.65rem] text-[#A1A1AA] mt-0.5">
-              Window #{predictionCurves.window} · 代表性窗口（秩相关最优）· {ALL_MODELS.length} 个模型公平对比 · 点击标签显隐曲线
+              Window #{predictionCurves.window} · 历史版本保存的展示窗口 · {ALL_MODELS.length} 个模型 · 点击 × 隐藏曲线
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -194,11 +188,10 @@ export default function CurvesPage() {
             <p className="text-xs text-[#52525B] leading-relaxed">
               <strong>📊 当前窗口分析：</strong>
               在 Window #{predictionCurves.window} 的{CHANNELS[channelIdx]?.name || '当前'}通道上，
-              <strong style={{color:'#16A34A'}}>{topModel}</strong> 的 24 小时平均绝对误差最低（MAE={topMAE}σ），
-              预测曲线与真实值（黑色实线）贴合最紧密；
+              <strong style={{color:'#16A34A'}}>{topModel}</strong> 在该单一窗口的 24 小时 MAE 最低（{topMAE}σ），
               其次为{modelRanking[1]?.name || ''}（MAE={modelRanking[1]?.mae?.toFixed(3) || ''}σ）。
+              这里只描述当前窗口，不代表全量窗口排名；
               表现最弱的 <strong style={{color:'#DC2626'}}>{lastModel}</strong>（MAE={lastMAE}σ）与前两名差距约 {modelRanking.length >= 2 ? (modelRanking[modelRanking.length-1].mae / modelRanking[0].mae).toFixed(1) : '—'} 倍。
-              {topModel.includes('BaseModel') ? '★ BaseModel 在该窗口继续保持领先。' : ''}
             </p>
           </div>
         )}
@@ -212,9 +205,9 @@ export default function CurvesPage() {
         <div className="text-xs text-[#52525B] leading-relaxed space-y-1.5">
           <p><strong>黑色实线</strong> = 测试集真实值（标准化空间，单位：σ），来源于 4G 基站 RAN 侧实测数据，Window #{predictionCurves.window}</p>
           <p><strong>标准化空间（σ）解读：</strong>0 表示等于历史均值水平，+2 表示高于均值 2 个标准差（流量高峰），−1 表示低于均值 1 个标准差（流量低谷）。所有模型在相同的 StandardScaler（拟合于训练集）下进行标准化，确保预测值在同一尺度上可直接对比。</p>
-          <p><strong>代表性窗口选择：</strong>在全部 {predictionCurves.n_windows || 5378} 个滑动窗口中，通过秩相关分析（0.8×Spearman秩相关 + 0.2×方差多样性）选取最优代表窗口（corr≈0.95）。该窗口的模型优劣排序与全局平均高度一致，能够公平地代表模型的典型表现，而非选取某个对特定模型有利或不利的极端窗口。</p>
-          <p className="mt-2"><strong>公平基准测试平台：</strong>所有模型共享相同的标准化数据管道——相同的 StandardScaler、相同的训练/测试集划分、相同的 24→24 滑动窗口协议。这是一个面向 4G 流量预测任务的标准化模型 benchmark，而非各模型单独调优后的非公平对比。</p>
-          <p className="text-[#A1A1AA] mt-1">💡 使用上方通道下拉菜单切换不同 KPI 指标的预测表现。BaseModel 以实线标注，其余模型以虚线区分。曲线密集时可使用"全选/取消全选"按钮快速切换。</p>
+          <p><strong>窗口范围：</strong>这是最初页面保存的一组历史展示数据，只适合查看该窗口的曲线形状；不能据此推断当前 3,514 个有效窗口的整体排名。</p>
+          <p className="mt-2"><strong>坐标说明：</strong>本图各模型与真实值位于同一标准化空间。0 表示训练集均值，正负值表示偏离训练均值的标准差倍数；不同模型数值范围较大时，可隐藏离群曲线后观察其余模型。</p>
+          <p className="text-[#A1A1AA] mt-1">使用通道下拉菜单切换 KPI；点击模型后的 × 隐藏曲线，并可在“添加模型”区域恢复。</p>
         </div>
       </div>
       </RevealCard>
@@ -228,7 +221,7 @@ export default function CurvesPage() {
         <div className="mt-3 p-3 rounded-xl bg-[#FAFAFA] border border-[rgba(0,0,0,0.03)]">
           <p className="text-xs text-[#52525B] leading-relaxed">
             <strong>📊 多窗口解读：</strong>
-            横轴展示从 5378 个窗口中采样的 6 个代表性窗口，纵轴为标准化后的总流量（第 12 小时预测值）。
+            横轴展示历史版本保存的 6 个采样窗口，纵轴为标准化后的总流量（第 12 小时预测值）。
             如果某模型的折线与黑色真实值折线在各窗口间始终保持相近的趋势和距离，说明该模型在不同时间模式（高峰/低谷/过渡期）下均能稳定预测；
             若某些窗口偏离较大，则提示模型对该类时间模式泛化不足。
           </p>

@@ -14,9 +14,10 @@ from four_g_protocol import (
     fit_training_scaler,
     load_observations,
 )
-from inference_engine import _infer_statistical
+from inference_engine import _infer_statistical, _forecast_autoar, _forecast_autoarima
 from generic_forecast import forecast
 from benchmark_artifacts import write_benchmark_artifact
+from data_pipeline import build_single_series_window
 from four_g_protocol import WindowRef
 from generic_forecast import forecast
 
@@ -66,6 +67,23 @@ class FourGProtocolTests(unittest.TestCase):
         autoar = _infer_statistical("autoar", series, pred_len=6)
         linear = _infer_statistical("linear_regression", series, pred_len=6)
         self.assertFalse(np.allclose(autoar, linear))
+
+    def test_autoar_and_autoarima_stay_finite_on_an_unstable_short_series(self):
+        series = np.array([0.0, 5.0, -4.0, 8.0, -7.0, 12.0] * 4)
+        for forecast in (_forecast_autoar(series, 24), _forecast_autoarima(series, 24)):
+            self.assertEqual(forecast.shape, (24,))
+            self.assertTrue(np.isfinite(forecast).all())
+            self.assertLessEqual(np.max(np.abs(forecast - series.mean())), max(4 * series.std(), 2 * np.ptp(series)))
+
+    def test_single_series_adapter_does_not_duplicate_channels(self):
+        frame = pd.DataFrame({"custom_metric": np.arange(30, dtype=np.float32)})
+        windows, scaler = build_single_series_window(frame, "custom_metric")
+
+        self.assertEqual(windows.shape, (8, 24, 8))
+        for channel in range(8):
+            self.assertGreater(float(np.std(windows[channel, :, channel])), 0)
+            self.assertTrue(np.allclose(np.delete(windows[channel], channel, axis=1), 0))
+        self.assertEqual(scaler.n_features_in_, 1)
 
     def test_generic_forecast_backtests_and_predicts_in_original_scale(self):
         values = np.sin(np.arange(60) / 3) + 10

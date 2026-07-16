@@ -13,18 +13,18 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
-from model_registry import get_model_info, MODEL_REGISTRY
-from data_pipeline import parse_file, build_4g_window_from_upload, FEATURE_COLS, NUM_CHANNELS
+from model_registry import get_model_info, resolve_model_checkpoint, MODEL_REGISTRY
+from data_pipeline import parse_file, build_4g_window_from_upload, build_single_series_window, FEATURE_COLS, NUM_CHANNELS
 from four_g_protocol import build_windows, fit_training_scaler, load_observations
 from model_loader import get_loaded_model_name, get_device, unload
 from inference_engine import infer
-from preset_curves import load_preset_curves, get_available_preset_models, load_benchmark_manifest, has_benchmark_artifact
+from preset_curves import load_preset_curves, get_available_preset_models, load_all_benchmark_manifests, has_benchmark_artifact
 from benchmark_artifacts import write_benchmark_artifact
 
 app = FastAPI(title="4G Traffic Playground API", version="0.4.0")
 
 app.add_middleware(CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "https://ze-fan1.github.io"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "https://ze-fan1.github.io"],
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # 全局异常处理 — 防止未捕获异常导致 HTTP 500 无响应
@@ -60,16 +60,19 @@ def _custom_prediction_capability(model_name: str, info: dict) -> tuple[bool, st
     if model_type == "statistical":
         return True, "local statistical model"
     if model_type == "pytorch":
-        checkpoint = info.get("checkpoint")
-        return (True, "local checkpoint; requires all eight 4G features") if checkpoint and Path(checkpoint).exists() else (False, "checkpoint is missing; train this model first")
+        checkpoint = resolve_model_checkpoint(model_name, info)
+        return (True, f"local checkpoint: {Path(checkpoint).parent.name}; full 4G features or channel-wise single-series adapter") if checkpoint else (False, "checkpoint is missing; train this model first")
     if model_type == "xgboost":
-        model_file = info.get("model_file")
-        exists = model_file and (Path(model_file).exists() or Path(model_file).with_suffix(".pkl").exists())
-        return (True, "local XGBoost weights; requires all eight 4G features") if exists else (False, "saved XGBoost weights are missing; training currently writes metrics only")
+        weights_file = info.get("weights_file")
+        exists = weights_file and Path(weights_file).exists()
+        return (True, "local XGBoost weights; full 4G features or channel-wise single-series adapter") if exists else (False, "saved XGBoost weights are missing; train XGBoost once to create them")
     if model_type == "huggingface":
         return True, "local HuggingFace model when its weights are cached"
     if model_type in ("mamba", "timellm"):
-        return False, "training script does not save reusable weights yet"
+        checkpoint = info.get("checkpoint")
+        config_file = info.get("config_file")
+        exists = checkpoint and config_file and Path(checkpoint).exists() and Path(config_file).exists()
+        return (True, "local trained weights; full 4G features or channel-wise single-series adapter") if exists else (False, "retrain once to create a reusable checkpoint")
     if model_type == "external_forecast":
         return False, "external benchmark forecast is not a user-upload model"
     return False, "model type is not supported for uploads"
@@ -209,14 +212,14 @@ async def api_preset_models():
 async def api_benchmark_models():
     """Return only models with an auditable panel-benchmark artifact."""
     models = []
-    for name, curve in load_benchmark_manifest().items():
+    for name, curve in load_all_benchmark_manifests().items():
         info = get_model_info(name)
         if info is None:
             continue
         models.append({
             "model": name,
             "cat": info["category"],
-            "metrics": curve["metrics_summary"],
+            "metrics": curve.get("metrics", {}),
             "protocol": curve["protocol"],
             "experiment_id": curve.get("experiment_id"),
         })
@@ -239,6 +242,9 @@ async def run_start(model_name: str):
     if run_type == "train_dl":
         # PyTorch DL: 从零训练 + 生成曲线
         return _start_dl_training(model_name, job_id, info)
+
+    elif model_name in ("XGBoost", "AutoARIMA", "AutoAR", "Mamba", "Chronos2", "TimeLLM"):
+        return _start_script_training(model_name, job_id, info, run_type)
 
     elif run_type in ("inference_stat", "inference_pretrained"):
         # 统计模型 / 预训练模型: 直接推理验证集
@@ -398,7 +404,7 @@ def _start_inference_run(model_name, job_id, info, run_type):
                 except Exception as e:
                     raise RuntimeError(f"Inference failed at benchmark window {i}: {e}") from e
 
-                if (i + 1) % 200 == 0 or i == n_windows - 1:
+                if (i + 1) % 10 == 0 or i == n_windows - 1:
                     with _jobs_lock:
                         _jobs[job_id]["progress"] = i + 1
                         _jobs[job_id]["curve_done"] = i + 1
@@ -458,24 +464,9 @@ def _start_inference_run(model_name, job_id, info, run_type):
 
 def _start_script_training(model_name, job_id, info, run_type):
     """独立脚本训练 (XGBoost/Mamba/TimeLLM)"""
-    tslib_str = str(TSLIB)
-    models_dir = str(TSLIB / "models")
-    data_dir = str(TSLIB / "data_provider" / "4g_traffic")
-
-    if run_type == "train_xgboost":
-        script = str(TSLIB / "models" / "model_xgboost.py")
-        cmd = [sys.executable, "-u", script, "--data_path", data_dir,
-               "--output_dir", str(TSLIB / "results")]
-    elif run_type == "train_mamba":
-        script = str(TSLIB / "models" / "model_mamba.py")
-        cmd = [sys.executable, "-u", script, "--data_path", data_dir,
-               "--output_dir", str(TSLIB / "results"),
-               "--d_model", "128", "--d_ff", "32", "--epochs", "10"]
-    elif run_type == "train_timellm":
-        script = str(TSLIB / "models" / "model_timellm.py")
-        cmd = [sys.executable, "-u", script, "--data_path", data_dir,
-               "--output_dir", str(TSLIB / "results"),
-               "--llm_name", "gpt2", "--epochs", "5", "--batch_size", "4"]
+    if model_name in ("XGBoost", "AutoARIMA", "AutoAR", "Mamba", "Chronos2", "TimeLLM"):
+        script = str(Path(__file__).parent / "special_model_runner.py")
+        cmd = [sys.executable, "-u", script, model_name]
     elif run_type == "external_base":
         script = str(Path(__file__).parent / "evaluate_external_base.py")
         cmd = [sys.executable, "-u", script]
@@ -485,13 +476,19 @@ def _start_script_training(model_name, job_id, info, run_type):
     proc = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, bufsize=1, cwd=str(Path(__file__).parent),
-        env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        env={
+            **os.environ,
+            "PYTHONUNBUFFERED": "1",
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+        },
     )
 
     with _jobs_lock:
         _jobs[job_id] = {"status": "training", "progress": 0, "total": 0, "epoch": 0,
-                          "loss": 0, "metrics": None, "curves": None,
-                          "model": model_name, "run_type": run_type, "phase": "training",
+                          "total_epochs": 0, "loss": 0, "metrics": None, "curves": None,
+                          "model": model_name, "run_type": run_type, "phase": "loading_data",
+                          "logs": [],
                           "_created_at": time.time()}
         _train_procs[job_id] = proc
 
@@ -502,18 +499,50 @@ def _start_script_training(model_name, job_id, info, run_type):
                 if not line: continue
 
                 with _jobs_lock:
-                    # 尝试解析常见格式
-                    m = re.search(r'(\d+)%', line)
-                    if m:
-                        _jobs[job_id]["progress"] = int(m.group(1))
+                    _jobs[job_id]["logs"] = (_jobs[job_id]["logs"] + [line])[-50:]
+                    if line.startswith("DATA_LOAD_START"):
+                        _jobs[job_id]["phase"] = "loading_data"
                         continue
-                    m = re.search(r'Epoch\s*(\d+)', line)
-                    if m:
-                        _jobs[job_id]["epoch"] = int(m.group(1))
+                    if line.startswith("DATA_LOAD_DONE:"):
+                        _jobs[job_id]["phase"] = "preparing_model"
                         continue
-                    m = re.search(r'loss[:\s]*([\d.]+)', line, re.IGNORECASE)
-                    if m:
-                        _jobs[job_id]["loss"] = float(m.group(1))
+                    if line.startswith("MODEL_LOAD_START"):
+                        _jobs[job_id]["phase"] = "loading_model"
+                        continue
+                    if line.startswith("TRAIN_START:"):
+                        parts = line.split(":")
+                        _jobs[job_id]["phase"] = "training"
+                        _jobs[job_id]["total_epochs"] = int(parts[1])
+                        _jobs[job_id]["total"] = int(parts[2])
+                        continue
+                    if line.startswith("TRAIN_PROGRESS:"):
+                        _, epoch, total_epochs, step, total_steps, loss = line.split(":")
+                        _jobs[job_id]["epoch"] = int(epoch)
+                        _jobs[job_id]["total_epochs"] = int(total_epochs)
+                        _jobs[job_id]["progress"] = int(step)
+                        _jobs[job_id]["total"] = int(total_steps)
+                        _jobs[job_id]["loss"] = float(loss)
+                        continue
+                    if line.startswith("INFERENCE_START:"):
+                        total = int(line.split(":", 1)[1])
+                        _jobs[job_id]["phase"] = "inference"
+                        _jobs[job_id]["progress"] = 0
+                        _jobs[job_id]["total"] = total
+                        _jobs[job_id]["curve_done"] = 0
+                        _jobs[job_id]["curve_total"] = total
+                        continue
+                    if line.startswith("INFERENCE_PROGRESS:"):
+                        _, done, total = line.split(":")
+                        _jobs[job_id]["progress"] = int(done)
+                        _jobs[job_id]["total"] = int(total)
+                        _jobs[job_id]["curve_done"] = int(done)
+                        _jobs[job_id]["curve_total"] = int(total)
+                        continue
+                    if line.startswith("METRICS:"):
+                        _jobs[job_id]["metrics"] = json.loads(line.split(":", 1)[1])
+                        continue
+                    if line == "CHECKPOINT_SAVED":
+                        _jobs[job_id]["checkpoint_saved"] = True
                         continue
 
                 if 'Error' in line or 'Traceback' in line:
@@ -530,6 +559,8 @@ def _start_script_training(model_name, job_id, info, run_type):
             if _jobs[job_id]["status"] != "error":
                 _jobs[job_id]["status"] = "done" if proc.returncode == 0 else "error"
                 _jobs[job_id]["phase"] = "done"
+                if proc.returncode != 0 and not _jobs[job_id].get("error"):
+                    _jobs[job_id]["error"] = "\n".join(_jobs[job_id].get("logs", [])[-10:])
 
         # 尝试加载预置曲线作为结果
         if proc.returncode == 0:
@@ -537,6 +568,12 @@ def _start_script_training(model_name, job_id, info, run_type):
             if preset and preset.get("curves"):
                 with _jobs_lock:
                     _jobs[job_id]["curves"] = preset["curves"]
+                    _jobs[job_id]["curves_meta"] = {
+                        "window_idx": preset.get("window_idx", 0),
+                        "total_windows": preset.get("total_windows", 0),
+                        "window_ref": preset.get("window_ref"),
+                        "protocol": preset.get("protocol"),
+                    }
                     if preset.get("metrics_summary"):
                         _jobs[job_id]["metrics"] = preset["metrics_summary"]
 
@@ -557,6 +594,8 @@ async def train_start(model_name: str):
 async def train_cancel(model_name: str):
     with _jobs_lock:
         for job_id, proc in list(_train_procs.items()):
+            if _jobs.get(job_id, {}).get("model") != model_name:
+                continue
             _jobs[job_id]["cancel"] = True
             proc.kill()
             _jobs[job_id]["status"] = "cancelled"
@@ -581,6 +620,8 @@ async def job_status(job_id: str):
         "phase": job.get("phase", "training"),
         "curve_done": job.get("curve_done", 0),
         "curve_total": job.get("curve_total", 0),
+        "checkpoint_saved": job.get("checkpoint_saved", False),
+        "logs": job.get("logs", []),
         "error": job.get("error"),
     }
 
@@ -639,32 +680,41 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
         except ValueError as exc:
             raise HTTPException(400, detail={"error": "invalid_series", "detail": str(exc)})
 
-    # ─── HuggingFace 预训练模型：直接用原始空间数据 ───
+    # ─── HuggingFace 预训练模型: any numeric target column ───
     if mtype == "huggingface":
-        raw_arr = df[nc_all].values.astype(np.float32)
-        if len(raw_arr) < SEQ_LEN + pred_len:
-            raise HTTPException(400, detail={"error": f"数据行数不足，需要至少 {SEQ_LEN + pred_len} 行"})
-        X_raw = raw_arr[-SEQ_LEN:]  # (24, n_user_cols)
+        values = df[target_col].to_numpy(dtype=np.float32)
+        if len(values) < SEQ_LEN:
+            raise HTTPException(400, detail={"error": f"数据行数不足，需要至少 {SEQ_LEN} 行"})
+        if not np.isfinite(values).all():
+            raise HTTPException(400, detail={"error": "目标列包含空值或非数值"})
+        # Chronos2 accepts the full univariate history. IBM TTM consumes its
+        # latest 512 observations inside the inference engine.
+        X_raw = values.reshape(-1, 1)
         try:
             pred = infer(model_name, X_raw, pred_len=pred_len)
         except Exception as e:
             raise HTTPException(500, detail={"error": "inference_failed", "detail": str(e)})
         if pred.ndim == 3:
             pred = pred[0]
-        idx = nc_all.index(target_col)
-        result = pred[:, idx] if pred.shape[1] > 1 else pred[:, 0]
-        result = np.clip(result, 0, None)
+        result = pred[:, 0]
         return {
             "model": model_name,
             "predictions": [round(float(v), 4) for v in result],
             "meta": {"target_col": target_col, "pred_len": pred_len,
                       "input_rows": len(df), "device": str(get_device()),
-                      "space": "original", "note": "预训练模型直接使用原始值"},
+                      "context_rows": min(len(values), int(info.get("context_len", len(values)))),
+                      "space": "original", "protocol": "univariate-huggingface-upload-v2"},
         }
 
-    # ─── 4G-only models: require the real feature contract ───
+    # ─── 4G models also accept a single numeric series via explicit adapter ───
     try:
-        window, scaler, target_model_ch = build_4g_window_from_upload(df, target_col)
+        if all(column in df.columns for column in FEATURE_COLS) and target_col in FEATURE_COLS:
+            window, scaler, target_model_ch = build_4g_window_from_upload(df, target_col)
+            input_mode = "4g-feature-contract-v1"
+        else:
+            window, scaler = build_single_series_window(df, target_col)
+            target_model_ch = None
+            input_mode = "single-series-channel-ensemble-v2"
     except ValueError as e:
         raise HTTPException(400, detail={"error": str(e)})
     try:
@@ -672,15 +722,25 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
     except Exception as e:
         raise HTTPException(500, detail={"error": "inference_failed", "detail": str(e)})
 
-    if pred.ndim == 3:
-        pred = pred[0]
-    if pred.ndim == 1:
-        pred = pred.reshape(-1, 1)
-
-    ch = min(target_model_ch, pred.shape[1] - 1)
-    target_pred = pred[:, ch]
-    raw_val = target_pred * scaler.scale_[ch] + scaler.mean_[ch]
-    raw_val = np.clip(raw_val, 0, None)
+    if input_mode == "single-series-channel-ensemble-v2":
+        if pred.ndim != 3 or pred.shape[0] != NUM_CHANNELS:
+            raise HTTPException(500, detail={"error": "single_series_adapter_shape", "detail": str(pred.shape)})
+        channel_predictions = np.stack(
+            [pred[channel, :, min(channel, pred.shape[2] - 1)] for channel in range(NUM_CHANNELS)],
+            axis=0,
+        )
+        target_pred = np.median(channel_predictions, axis=0)
+        raw_val = target_pred * scaler.scale_[0] + scaler.mean_[0]
+    else:
+        if pred.ndim == 3:
+            pred = pred[0]
+        if pred.ndim == 1:
+            pred = pred.reshape(-1, 1)
+        ch = min(target_model_ch, pred.shape[1] - 1)
+        target_pred = pred[:, ch]
+        raw_val = target_pred * scaler.scale_[ch] + scaler.mean_[ch]
+    # Preserve the uploaded target's value domain; traffic data may be
+    # non-negative, but arbitrary user series can legitimately be negative.
 
     return {
         "model": model_name,
@@ -690,7 +750,8 @@ async def predict(model_name: str, data_file: UploadFile = File(...),
             "input_rows": len(df), "device": str(get_device()),
             "channels_matched": list(FEATURE_COLS),
             "total_model_channels": NUM_CHANNELS,
-            "protocol": "4g-feature-contract-v1",
+            "adapter": "median of matching outputs from eight channel-wise model runs" if target_model_ch is None else None,
+            "protocol": input_mode,
         },
     }
 

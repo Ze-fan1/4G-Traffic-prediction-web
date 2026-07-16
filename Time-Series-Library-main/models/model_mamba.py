@@ -15,7 +15,7 @@ Mamba 状态空间模型时间序列预测
   --d_conv    卷积核大小 (默认4)
   --e_layers  残差块层数 (默认2)
 """
-import sys, os, argparse, math, numpy as np, torch, torch.nn as nn, torch.nn.functional as F
+import sys, os, argparse, math, json, numpy as np, torch, torch.nn as nn, torch.nn.functional as F
 from einops import rearrange, repeat, einsum
 sys.path.insert(0, os.path.dirname(__file__))
 from shared_utils import load_data, fit_scaler, generate_windows, compute_metrics, save_results
@@ -230,6 +230,18 @@ def main():
     print(f'\n  {model_name}')
     print(f'  MSE={metrics["MSE"]:.4f}  MAE={metrics["MAE"]:.4f}  RMSE={metrics["RMSE"]:.4f}')
     print(f'  MAPE={metrics["MAPE"]:.4f}  Custom_ACC={metrics["Custom_ACC"]:.4f}')
+
+    # Save architecture and weights together; pred.npy alone cannot be used
+    # for inference on a user's uploaded history.
+    model_dir = os.path.join(args.output_dir, model_name)
+    os.makedirs(model_dir, exist_ok=True)
+    torch.save(model.cpu().state_dict(), os.path.join(model_dir, 'checkpoint.pth'))
+    with open(os.path.join(model_dir, 'model_config.json'), 'w', encoding='utf-8') as f:
+        json.dump({
+            'enc_in': num_channels, 'd_model': args.d_model,
+            'd_inner': d_inner, 'd_state': args.d_ff, 'd_conv': args.d_conv,
+            'e_layers': args.e_layers, 'pred_len': 24,
+        }, f, indent=2)
 
     save_results(model_name, metrics, args.output_dir)
 

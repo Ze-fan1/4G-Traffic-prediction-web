@@ -2,6 +2,7 @@
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { CHANNELS } from '../data/channels';
+import { getModelColor } from '../data/palette';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -18,13 +19,20 @@ const RUN_TYPE_LABEL = {
   train_timellm: '🔥 训练 TimeLLM (需 GPT-2)',
 };
 
+const MODEL_ACTION_LABEL = {
+  AutoARIMA: '📊 本地重新拟合 AutoARIMA',
+  AutoAR: '📊 本地重新拟合 AutoAR',
+  Chronos2: '🔄 本地重新运行 Chronos2',
+};
+
 const WINDOW_OPTIONS = [
   { value: '0', label: '有效窗口 #0' },
+  { value: '11', label: '有效窗口 #11（典型波动）' },
   { value: '100', label: '有效窗口 #100' },
   { value: '1000', label: '有效窗口 #1000' },
 ];
 
-// 多次训练结果用不同线型区分（全黑）
+// Multiple runs use different line styles; model colors stay stable everywhere.
 const RUN_DASHES = [
   [],           // 实线
   [6, 3],       // 长虚线
@@ -70,8 +78,9 @@ function startGlobalPoll(mKey, jobId, onUpdate) {
   globalPollers.set(mKey, interval);
 }
 
-function ChartBlock({ curves, chKey, label, isPreset, windowInfo, dashStyle }) {
+function ChartBlock({ curves, chKey, label, colorKey, isPreset, windowInfo, dashStyle }) {
   const ds = [];
+  const predictionColor = getModelColor(colorKey || label || 'prediction');
   // Ground truth — 黑色虚线
   if (curves?.[chKey]?.truth) {
     ds.push({
@@ -85,12 +94,12 @@ function ChartBlock({ curves, chKey, label, isPreset, windowInfo, dashStyle }) {
       order: 0,
     });
   }
-  // Prediction — 黑色实线
+  // Keep a given model's color identical for saved and newly-run curves.
   if (curves?.[chKey]?.pred) {
     ds.push({
       label: label || '预测',
       data: curves[chKey].pred,
-      borderColor: '#18181B',
+      borderColor: predictionColor,
       borderWidth: isPreset ? 2 : 1.8,
       borderDash: dashStyle || [],
       pointRadius: 0,
@@ -148,17 +157,20 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
   const saved = modelRunState.get(model) || {};
   const [presetData, setPresetData] = useState(null);
   const [presetLoading, setPresetLoading] = useState(false);
-  const [presetWindow, setPresetWindow] = useState('0');
+  const [presetWindow, setPresetWindow] = useState('11');
 
   const [runJobId, setRunJobId] = useState(saved.runJobId || null);
   const [runStatus, setRunStatusRaw] = useState(saved.runStatus || null);
   const [runPhase, setRunPhase] = useState(saved.runPhase || null);
   const [runEpoch, setRunEpoch] = useState(saved.runEpoch || 0);
   const [runTotalEpochs, setRunTotalEpochs] = useState(saved.runTotalEpochs || 0);
+  const [runProgress, setRunProgress] = useState(saved.runProgress || 0);
+  const [runTotal, setRunTotal] = useState(saved.runTotal || 0);
   const [runLoss, setRunLoss] = useState(saved.runLoss || 0);
   const [error, setError] = useState(saved.error || null);
   const [curveDone, setCurveDone] = useState(saved.curveDone || 0);
   const [curveTotal, setCurveTotal] = useState(saved.curveTotal || 0);
+  const [runLogs, setRunLogs] = useState(saved.runLogs || []);
   const [runHistory, setRunHistory] = useState(modelHistoryCache.get(model) || []);
 
   const setRunStatus = useCallback((v) => {
@@ -172,9 +184,9 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
   useEffect(() => {
     modelRunState.set(model, {
       runJobId, runStatus, runPhase, runEpoch, runTotalEpochs,
-      runLoss, error, curveDone, curveTotal,
+      runProgress, runTotal, runLoss, error, curveDone, curveTotal, runLogs,
     });
-  }, [model, runJobId, runStatus, runPhase, runEpoch, runTotalEpochs, runLoss, error, curveDone, curveTotal]);
+  }, [model, runJobId, runStatus, runPhase, runEpoch, runTotalEpochs, runProgress, runTotal, runLoss, error, curveDone, curveTotal, runLogs]);
 
   // Restore model state without coupling it to the visible curve window.
   useEffect(() => {
@@ -184,10 +196,13 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     setRunPhase(saved2.runPhase || null);
     setRunEpoch(saved2.runEpoch || 0);
     setRunTotalEpochs(saved2.runTotalEpochs || 0);
+    setRunProgress(saved2.runProgress || 0);
+    setRunTotal(saved2.runTotal || 0);
     setRunLoss(saved2.runLoss || 0);
     setError(saved2.error || null);
     setCurveDone(saved2.curveDone || 0);
     setCurveTotal(saved2.curveTotal || 0);
+    setRunLogs(saved2.runLogs || []);
     setRunHistory(modelHistoryCache.get(model) || []);
   }, [model]);
 
@@ -210,10 +225,12 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
     const pollKey = `${model}_${jobId}`;
     startGlobalPoll(pollKey, jobId, (d) => {
       setRunEpoch(d.epoch || 0);
+      setRunProgress(d.progress || 0); setRunTotal(d.total || 0);
       setRunLoss(d.loss || 0);
       if (d.total_epochs > 0) setRunTotalEpochs(d.total_epochs);
       setRunPhase(d.phase || 'training');
       setCurveDone(d.curve_done || 0); setCurveTotal(d.curve_total || 0);
+      setRunLogs(d.logs || []);
       if (d.status === 'done' && d.curves) {
         const entry = buildDoneEntry(d, model);
         const updated = [...(modelHistoryCache.get(model) || []), entry];
@@ -239,7 +256,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       if (key.startsWith(`${model}_`)) stopGlobalPoll(key);
     }
 
-    setError(null); setRunEpoch(0); setRunTotalEpochs(0); setRunLoss(0);
+    setError(null); setRunEpoch(0); setRunTotalEpochs(0); setRunProgress(0); setRunTotal(0); setRunLoss(0);
     setCurveDone(0); setCurveTotal(0); setRunStatus('running');
     setRunPhase(runType === 'inference_stat' || runType === 'inference_pretrained' ? 'inference' : 'training');
 
@@ -252,10 +269,12 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       const pollKey = `${model}_${job_id}`;
       startGlobalPoll(pollKey, job_id, (d) => {
         setRunEpoch(d.epoch || 0);
+        setRunProgress(d.progress || 0); setRunTotal(d.total || 0);
         setRunLoss(d.loss || 0);
         if (d.total_epochs > 0) setRunTotalEpochs(d.total_epochs);
         setRunPhase(d.phase || 'training');
         if (d.phase === 'curves' || d.phase === 'inference') { setCurveDone(d.curve_done || 0); setCurveTotal(d.curve_total || 0); }
+        setRunLogs(d.logs || []);
         if (d.status === 'done' && d.curves) {
           const entry = buildDoneEntry(d, model);
           const upd = [...(modelHistoryCache.get(model) || []), entry];
@@ -295,7 +314,8 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
   const isRunActive = runStatus === 'running' || runStatus === 'training';
   const runPct = isCurvePhase
     ? (curveTotal > 0 ? Math.round((curveDone / curveTotal) * 100) : 0)
-    : (runTotalEpochs > 0 ? Math.round((runEpoch / runTotalEpochs) * 100) : 0);
+    : (runTotal > 0 ? Math.round((runProgress / runTotal) * 100)
+      : runTotalEpochs > 0 ? Math.round((runEpoch / runTotalEpochs) * 100) : 0);
 
   const presetWindowInfo = presetData
     ? `窗口 #${presetData.window_idx}/${presetData.total_windows}${presetData.window_ref ? ` · 小区 ${presetData.window_ref.cell_id} · ${presetData.window_ref.start}` : ''}`
@@ -308,7 +328,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-[#18181B]">{model}</h3>
           <p className="text-[0.65rem] text-[#A1A1AA]">
-            {RUN_TYPE_LABEL[runType] || RUN_TYPE_LABEL.train_dl}
+            {MODEL_ACTION_LABEL[model] || RUN_TYPE_LABEL[runType] || RUN_TYPE_LABEL.train_dl}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -327,8 +347,13 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
       {/* σ-space explanation */}
       <div className="p-2 rounded-lg bg-[#F5F5F5] border border-[#E5E5E5] text-[0.6rem] text-[#52525B] leading-relaxed">
         💡 <b>σ空间说明</b>：所有曲线经过 <b>StandardScaler 标准化</b>（减均值 ÷ 标准差）。
-        值 &gt; 0 = <b>高于</b>历史均值，值 &lt; 0 = <b>低于</b>历史均值。真实值 = 黑色虚线，本地预测值 = 黑色实线，训练结果 = 不同线型区分次数。
+        值 &gt; 0 = <b>高于</b>历史均值，值 &lt; 0 = <b>低于</b>历史均值。真实值 = 黑色虚线；同一模型的预置和训练曲线始终使用同一颜色，多次训练以线型区分。
       </div>
+      {(model === 'Chronos2' || model === 'IBM TTM') && (
+        <div className="p-2 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-[0.6rem] text-[#1E3A5F] leading-relaxed">
+          该图只显示一个验证窗口。{model} 的预训练预测通常较平滑，所选通道自身波动较小时会接近直线；首页 ACC 是 3,514 个窗口、8 个通道的全量汇总，不能用这一张局部图直接反推。可切换窗口和通道核对原始结果。
+        </div>
+      )}
 
       {/* Charts */}
       <div className="space-y-2 max-h-[750px] overflow-y-auto">
@@ -337,7 +362,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         {!presetLoading && presetData?.curves && (
           <div className="p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
             <ChartBlock curves={presetData.curves} chKey={chKey}
-              label={`${model}本地预测值`} isPreset={true} windowInfo={presetWindowInfo} />
+              label={`${model}本地预测值`} colorKey={model} isPreset={true} windowInfo={presetWindowInfo} />
             {presetData.metrics_summary && (
               <div className="flex gap-3 text-[0.6rem] text-[#6B7280] mt-2 pt-2 border-t border-[#E5E7EB]">
                 <span>MSE: <b>{presetData.metrics_summary.mse}</b></span>
@@ -352,6 +377,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
           <div key={i} className="p-3 rounded-xl bg-white border border-[#E5E7EB]">
             <ChartBlock curves={entry.curves} chKey={chKey}
               label={`✅ 训练结果 ${entry.label}`}
+              colorKey={model}
               dashStyle={RUN_DASHES[i % RUN_DASHES.length]} />
             {entry.metrics && (
               <div className="flex gap-2 text-[0.6rem] text-[#6B7280]">
@@ -375,10 +401,12 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
         <div className="p-3 rounded-lg bg-[#FEF3C7] border border-[#FCD34D] text-xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-medium text-[#92400E]">
-              {runPhase === 'loading_model' ? '🔄 加载预训练模型...'
+              {runPhase === 'loading_data' ? '📂 正在构建本地训练/验证窗口...'
+                : runPhase === 'preparing_model' ? '🧠 正在初始化本地模型...'
+                : runPhase === 'loading_model' ? '🔄 加载本地预训练模型...'
                 : isCurvePhase ? `📊 生成曲线... ${curveDone}/${curveTotal || '?'}`
                 : runType === 'inference_stat' ? `📊 计算中... (${runPct}%)`
-                : `🔥 Epoch ${runEpoch}/${runTotalEpochs || '?'} · Loss ${runLoss.toFixed(4)} (${runPct}%)`}
+                : `🔥 本地运行 ${runProgress}/${runTotal || '?'} · Epoch ${runEpoch}/${runTotalEpochs || '?'} · Loss ${runLoss.toFixed(4)} (${runPct}%)`}
             </span>
             <button onClick={handleCancel} className="text-[0.6rem] px-2 py-0.5 rounded bg-[#EF4444] text-white hover:bg-[#DC2626] cursor-pointer">取消</button>
           </div>
@@ -386,6 +414,11 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
             <div className="h-full rounded-full bg-[#D97706] transition-all duration-500" style={{ width: `${Math.min(runPct, 100)}%` }} />
           </div>
           <p className="text-[0.6rem] text-[#92400E]">Switching cards does not pause the backend job; returning resumes progress updates.</p>
+          {runLogs.length > 0 && (
+            <p className="text-[0.58rem] text-[#78350F] truncate" title={runLogs[runLogs.length - 1]}>
+              {runLogs[runLogs.length - 1]}
+            </p>
+          )}
         </div>
       )}
       {runStatus === 'cancelled' && <div className="p-2 rounded-lg bg-[#FFF7ED] border text-xs text-[#9A3412]">⏹️ 已取消</div>}
@@ -398,7 +431,7 @@ export default function DemoPanel({ model, channelIdx, onChangeChannel, isAvaila
           ? <button onClick={handleCancel} className="text-xs px-4 py-2 rounded-xl bg-[#EF4444] text-white hover:bg-[#DC2626] cursor-pointer font-medium">⏹️ 停止</button>
           : <button onClick={handleRun} disabled={presetLoading}
               className="text-xs px-4 py-2 rounded-xl bg-[#18181B] text-white hover:bg-[#374151] cursor-pointer font-medium disabled:opacity-50">
-              {runHistory.length > 0 ? `🔄 再次运行 (#${runHistory.length + 1})` : (RUN_TYPE_LABEL[runType] || RUN_TYPE_LABEL.train_dl)}
+              {runHistory.length > 0 ? `🔄 再次运行 (#${runHistory.length + 1})` : (MODEL_ACTION_LABEL[model] || RUN_TYPE_LABEL[runType] || RUN_TYPE_LABEL.train_dl)}
             </button>}
         {runHistory.length > 0 && !isRunActive && (
           <button onClick={handleClearHistory} className="text-xs px-3 py-2 rounded-xl bg-[#F3F4F6] text-[#6B7280] hover:bg-[#E5E7EB] cursor-pointer">🗑️ 清除</button>

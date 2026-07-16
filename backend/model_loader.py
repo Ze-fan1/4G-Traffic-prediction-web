@@ -3,10 +3,12 @@
 """
 import sys
 import threading
+import json
+import importlib
 import torch
 import numpy as np
 from pathlib import Path
-from model_registry import get_model_info
+from model_registry import get_model_info, resolve_model_checkpoint
 
 from project_paths import TSLIB_ROOT
 MODELS_DIR = TSLIB_ROOT / "models"
@@ -92,7 +94,7 @@ def load(model_name: str):
         model = info["method"]
 
     elif mtype == "pytorch":
-        ckpt_path = info.get("checkpoint")
+        ckpt_path = resolve_model_checkpoint(model_name, info)
         if ckpt_path is None or not Path(ckpt_path).exists():
             raise FileNotFoundError(f"Checkpoint 不存在: {ckpt_path}")
 
@@ -223,6 +225,7 @@ def load(model_name: str):
                 model_id,
                 device_map=device,
                 torch_dtype=torch.bfloat16 if device.type == "cuda" else torch.float32,
+                local_files_only=True,
             )
         elif "chronos" in model_id.lower():
             from chronos import ChronosPipeline
@@ -230,39 +233,49 @@ def load(model_name: str):
                 model_id,
                 device_map=device,
                 torch_dtype=torch.bfloat16 if device.type == "cuda" else torch.float32,
+                local_files_only=True,
             )
         elif "ttm" in model_id.lower():
             from tsfm_public import TinyTimeMixerForPrediction
-            model = TinyTimeMixerForPrediction.from_pretrained(model_id, revision="main")
+            model = TinyTimeMixerForPrediction.from_pretrained(model_id, revision="main", local_files_only=True)
             model.to(device)
             model.eval()
         else:
             raise ValueError(f"不支持的 HuggingFace 模型: {model_id}")
 
     elif mtype == "xgboost":
-        import xgboost as xgb
         import pickle
-        model_path = info.get("model_file")
-        # Try pickle first, then xgb native, then fallback
-        if model_path:
-            pkl_path = model_path.replace('.json', '.pkl')
-            if Path(pkl_path).exists():
-                with open(pkl_path, 'rb') as f:
-                    data = pickle.load(f)
-                model = data['models']  # dict of per-channel models
-            elif Path(model_path).exists():
-                model = xgb.Booster()
-                model.load_model(model_path)
-            else:
-                from data_pipeline import load_test_data
-                df_train, _, _, cols = load_test_data()
-                X_train = df_train[cols].values
-                model = _train_xgboost_quick(X_train, cols)
-        else:
-            from data_pipeline import load_test_data
-            df_train, _, _, cols = load_test_data()
-            X_train = df_train[cols].values
-            model = _train_xgboost_quick(X_train, cols)
+        model_path = info.get("weights_file") or info.get("model_file")
+        if not model_path or not Path(model_path).exists():
+            raise FileNotFoundError("XGBoost weights are missing; train XGBoost in the model center first")
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+
+    elif mtype == "mamba":
+        checkpoint = info.get("checkpoint")
+        config_path = info.get("config_file")
+        if not checkpoint or not Path(checkpoint).exists() or not config_path or not Path(config_path).exists():
+            raise FileNotFoundError("Mamba checkpoint is missing; train Mamba again to create reusable local weights")
+        with open(config_path, encoding="utf-8") as f:
+            config = json.load(f)
+        module = importlib.import_module("model_mamba")
+        model = module.MambaModel(**config)
+        model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
+        model.to(device)
+        model.eval()
+
+    elif mtype == "timellm":
+        checkpoint = info.get("checkpoint")
+        config_path = info.get("config_file")
+        if not checkpoint or not Path(checkpoint).exists() or not config_path or not Path(config_path).exists():
+            raise FileNotFoundError("TimeLLM checkpoint is missing; train TimeLLM again to create reusable local weights")
+        with open(config_path, encoding="utf-8") as f:
+            config = json.load(f)
+        module = importlib.import_module("model_timellm")
+        model = module.TimeLLM_Model(**config)
+        model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
+        model.to(device)
+        model.eval()
 
     else:
         raise ValueError(f"未知模型类型: {mtype}")

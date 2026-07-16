@@ -59,6 +59,16 @@ def load_benchmark_manifest(model_name: str) -> dict | None:
     return manifest
 
 
+def load_all_benchmark_manifests() -> dict[str, dict]:
+    """Return lightweight manifests for every currently validated model."""
+    manifests = {}
+    for model_name in MODEL_REGISTRY:
+        manifest = load_benchmark_manifest(model_name)
+        if manifest is not None:
+            manifests[model_name] = manifest
+    return manifests
+
+
 def has_benchmark_artifact(model_name: str) -> bool:
     return load_benchmark_manifest(model_name) is not None
 

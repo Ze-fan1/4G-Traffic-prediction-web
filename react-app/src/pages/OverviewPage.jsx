@@ -188,16 +188,16 @@ export default function OverviewPage() {
         </div>
       </RevealCard>
 
-      {/* ═══ 核心发现 ═══ */}
+      {/* ═══ Platform notes ═══ */}
       <RevealCard>
         <div className="card p-5">
-          <h3 className="text-sm font-semibold tracking-tight mb-2">核心发现</h3>
+          <h3 className="text-sm font-semibold tracking-tight mb-2">评测说明与使用提示</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#52525B] leading-relaxed">
             {[
-              ['1.', '已完成重评测的外部 BaseModel 当前 Custom ACC 为 0.5853；Naive 与 Persistent 24h 的主要比较指标为 MSE、MAE 与 RMSE。'],
-              ['2.', '全部模型将以“同一小区、连续48小时”的窗口协议重新评测，避免跨小区或时间缺口造成的无效样本。'],
-              ['3.', '所有公开曲线均附带模型、窗口所属小区和起始时间，便于追溯实验结果。'],
-              ['4.', '任意上传数据使用独立的通用预测模式，并先在文件末段执行留出回测；不会被伪造成 4G 特征。'],
+              ['1.', '首页排名只使用已经完成本地运行并写入可追溯 manifest 的当前结果；模型运行期间保留上一次可用排名。'],
+              ['2.', '当前严格协议按小区分组并切分连续时间段，使用过去 24 小时预测未来 24 小时，避免跨小区和跨时间缺口。'],
+              ['3.', '预测对比提供“当前本地评测曲线”和“历史曲线与稳定性”两个视图；当前曲线可切换验证窗口并隐藏单个模型。'],
+              ['4.', '上传数据支持任意数值目标列；有完整 4G 特征时按原通道输入，单列数据使用明确标注的逐通道本地模型适配。已有可用权重时无需重复训练。'],
             ].map(([num, text]) => (
               <div key={num} className="flex gap-2">
                 <span className="text-[#52525B] font-bold flex-shrink-0">{num}</span>

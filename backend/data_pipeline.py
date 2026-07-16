@@ -1,6 +1,7 @@
 """
 数据预处理管道: CSV/Excel/Parquet 解析 / 标准化 / 滑动窗口 / 测试数据加载
 """
+import numpy as np
 import pandas as pd
 from io import BytesIO
 from pathlib import Path
@@ -159,3 +160,25 @@ def build_4g_window_from_upload(df: pd.DataFrame, target_col: str):
     values = scaler.transform(numeric.to_numpy(dtype=np.float64)).astype(np.float32)
     channel = list(FEATURE_COLS).index(target_col)
     return values[-SEQ_LEN:], scaler, channel
+
+
+def build_single_series_window(df: pd.DataFrame, target_col: str, num_channels: int = NUM_CHANNELS):
+    """Build channel-wise counterfactual inputs for an uploaded single series.
+
+    The trained 4G models require eight channels. For a one-column upload, each
+    batch item places the observed normalized series in one model channel while
+    all unavailable channels stay at zero (the training mean in standardized
+    space). The caller aggregates the matching output channel from every item.
+    This avoids pretending that eight identical measurements were observed.
+    """
+    values = pd.to_numeric(df[target_col], errors="coerce").to_numpy(dtype=np.float32)
+    if len(values) < SEQ_LEN:
+        raise ValueError(f"At least {SEQ_LEN} rows are required")
+    if not np.isfinite(values).all():
+        raise ValueError("The selected target column contains non-numeric or missing values")
+    scaler = StandardScaler().fit(values.reshape(-1, 1))
+    normalized = scaler.transform(values.reshape(-1, 1))[-SEQ_LEN:, 0]
+    windows = np.zeros((num_channels, SEQ_LEN, num_channels), dtype=np.float32)
+    for channel in range(num_channels):
+        windows[channel, :, channel] = normalized
+    return windows, scaler

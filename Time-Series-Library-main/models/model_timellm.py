@@ -11,7 +11,7 @@ TimeLLM: 用大语言模型重编程进行时间序列预测
   --llm_name gpt2          (124M参数, 约500MB显存)
   --llm_name gpt2-medium   (355M参数, 约1.5GB显存, 需要更多资源)
 """
-import sys, os, argparse, numpy as np, torch, torch.nn as nn, warnings
+import sys, os, argparse, json, numpy as np, torch, torch.nn as nn, warnings
 sys.path.insert(0, os.path.dirname(__file__))
 from shared_utils import load_data, fit_scaler, generate_windows, compute_metrics, save_results
 
@@ -33,7 +33,7 @@ class TimeLLM_Model(nn.Module):
         self.patch_dim = patch_len * num_channels
 
         from transformers import GPT2Model
-        self.llm = GPT2Model.from_pretrained(llm_name)
+        self.llm = GPT2Model.from_pretrained(llm_name, local_files_only=True)
         d_llm = self.llm.config.n_embd
 
         # 冻结 LLM
@@ -205,6 +205,18 @@ def main():
     print(f'\n  {model_name}')
     print(f'  MSE={metrics["MSE"]:.4f}  MAE={metrics["MAE"]:.4f}  RMSE={metrics["RMSE"]:.4f}')
     print(f'  MAPE={metrics["MAPE"]:.4f}  Custom_ACC={metrics["Custom_ACC"]:.4f}')
+
+    # The frozen GPT-2 cache is not enough: retain the trained projection and
+    # prompt parameters so uploaded data uses this exact local model.
+    model_dir = os.path.join(args.output_dir, model_name)
+    os.makedirs(model_dir, exist_ok=True)
+    torch.save(model.cpu().state_dict(), os.path.join(model_dir, 'checkpoint.pth'))
+    with open(os.path.join(model_dir, 'model_config.json'), 'w', encoding='utf-8') as f:
+        json.dump({
+            'seq_len': args.seq_len, 'pred_len': args.pred_len,
+            'num_channels': num_channels, 'llm_name': args.llm_name,
+            'patch_len': args.patch_len, 'stride': args.stride,
+        }, f, indent=2)
 
     save_results(model_name, metrics, args.output_dir)
 

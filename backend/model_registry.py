@@ -1,6 +1,8 @@
 """
 26 模型完整注册表 — 每个模型的类型、checkpoint 路径、类别、Tier 等级、运行方式
 """
+from pathlib import Path
+
 from project_paths import CHECKPOINTS_DIR, DATA_DIR, RESULTS_DIR, TSLIB_ROOT
 
 MODEL_REGISTRY = {
@@ -45,7 +47,8 @@ MODEL_REGISTRY = {
     # ═══ Tree ═══
     "XGBoost": {
         "type": "xgboost",
-        "model_file": str(TSLIB_ROOT / "results" / "XGBoost_n100_d5_lr0.1" / "xgb_model.json"),
+        "model_file": str(TSLIB_ROOT / "results" / "XGBoost_n100_d5_lr0.1" / "xgb_model.pkl"),
+        "weights_file": str(TSLIB_ROOT / "results" / "XGBoost_n100_d5_lr0.1" / "xgb_model.pkl"),
         "tier": 1, "category": "Tree",
         "run_type": "train_xgboost",
         "result_dir": str(RESULTS_DIR / "XGBoost_n100_d5_lr0.1"),
@@ -166,7 +169,8 @@ MODEL_REGISTRY = {
     # ═══ SSM ═══
     "Mamba": {
         "type": "mamba",
-        "checkpoint": None,
+        "checkpoint": str(TSLIB_ROOT / "results" / "Mamba_d128_ex2_ds32_dc4_el2" / "checkpoint.pth"),
+        "config_file": str(TSLIB_ROOT / "results" / "Mamba_d128_ex2_ds32_dc4_el2" / "model_config.json"),
         "args_override": {"d_model": 128, "d_ff": 32, "expand": 2},
         "tier": 1, "category": "SSM",  # 改为 Tier 1，通过独立脚本训练
         "run_type": "train_mamba",
@@ -176,7 +180,8 @@ MODEL_REGISTRY = {
     # ═══ LLM ═══
     "TimeLLM": {
         "type": "timellm",
-        "checkpoint": None,
+        "checkpoint": str(TSLIB_ROOT / "results" / "TimeLLM_gpt2_pl6_s3" / "checkpoint.pth"),
+        "config_file": str(TSLIB_ROOT / "results" / "TimeLLM_gpt2_pl6_s3" / "model_config.json"),
         "args_override": {},
         "tier": 1, "category": "LLM",  # 改为 Tier 1，通过独立脚本训练
         "run_type": "train_timellm",
@@ -195,6 +200,18 @@ MODEL_REGISTRY = {
 def get_model_info(name: str) -> dict:
     """获取单个模型元数据，不存在返回 None"""
     return MODEL_REGISTRY.get(name)
+
+
+def resolve_model_checkpoint(name: str, info: dict | None = None) -> str | None:
+    """Find the configured or most recent checkpoint from an earlier local run."""
+    info = info or MODEL_REGISTRY.get(name) or {}
+    configured = info.get("checkpoint")
+    if configured and Path(configured).exists():
+        return str(Path(configured))
+    candidates = list(CHECKPOINTS_DIR.glob(f"{name}_4G_*/checkpoint.pth"))
+    if not candidates:
+        return None
+    return str(max(candidates, key=lambda path: path.stat().st_mtime))
 
 
 def list_models(tier_filter: int = None) -> list:

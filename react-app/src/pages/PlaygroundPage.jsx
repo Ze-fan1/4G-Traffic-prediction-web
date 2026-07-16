@@ -4,7 +4,7 @@ import DemoPanel from '../components/DemoPanel';
 import UploadPanel from '../components/UploadPanel';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
-const MODELS_CACHE_KEY = 'playground_models_cache_v2';
+const MODELS_CACHE_KEY = 'playground_models_cache_v3';
 
 export default function PlaygroundPage() {
   const [selectedModel, setSelectedModel] = useState(() => {
@@ -36,7 +36,11 @@ export default function PlaygroundPage() {
       .catch(() => {});
     loadModels();
     const timer = window.setInterval(loadModels, 30000);
-    return () => window.clearInterval(timer);
+    window.addEventListener('benchmark-updated', loadModels);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('benchmark-updated', loadModels);
+    };
   }, []);
 
   const currentInfo = modelInfo[selectedModel] || {};
@@ -89,7 +93,7 @@ export default function PlaygroundPage() {
                     : 'bg-[#F5F5F5] text-[#52525B] hover:bg-[#E5E5E5]'
                 }`}
               >
-                📁 通用预测
+                📁 上传数据
               </button>
             </div>
 

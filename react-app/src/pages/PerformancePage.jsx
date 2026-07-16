@@ -115,8 +115,9 @@ function CategoryBarChart() {
 export default function PerformancePage() {
   return (
     <div className="page-enter">
+      <div className="mt-5 p-3 rounded-xl bg-[#FFF7ED] border border-[#FED7AA] text-xs text-[#9A3412]">历史 GitHub 指标视图（旧 5,378 窗口协议），用于恢复原版图表；当前可信排名请查看首页。</div>
       {/* Data table */}
-      <RevealCard className="mt-5">
+      <RevealCard className="mt-4">
         <DataTable />
       </RevealCard>
 
@@ -182,8 +183,8 @@ export default function PerformancePage() {
             <p className="text-xs text-[#52525B] leading-relaxed">
               <strong>📊 图表解读：</strong>
               按模型架构范式（Transformer、MLP、CNN、RNN、SSM、LLM 等）汇总平均 MSE，快速判断哪类架构在 4G 流量预测任务上整体最优。
-              柱高越低越好。注意柱内的模型数量不同（如 LLM 类含 4 个 Chronos 变体 + TimeLLM），柱间对比时应结合样本量判断。Chronos2（ACC=0.4903）显著拉低了 LLM 类平均 MSE。
-              目前 ★ BaseModel 以最低单模型 MSE 领跑，CNN/Tree 类别整体表现稳健。
+              柱高越低越好。注意柱内的模型数量不同，柱间平均值会受到类别样本量影响。当前历史数据中的 LLM 类只包含 TimeLLM 和 Chronos2，IBM TTM 归入 MLP 类。
+              该图只汇总历史数据文件中的数值，不用于替代首页当前本地重评测排名。
             </p>
           </div>
         </div>

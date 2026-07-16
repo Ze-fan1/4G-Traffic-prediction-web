@@ -4,7 +4,7 @@ XGBoost 时间序列预测
 为每个输出维度独立训练一个 XGBoost 回归器（192个模型 = 24小时×8通道）
 输入: 过去24小时展平 → 输出: 未来24小时
 """
-import sys, os, argparse, numpy as np
+import sys, os, argparse, pickle, numpy as np
 sys.path.insert(0, os.path.dirname(__file__))
 from shared_utils import load_data, fit_scaler, generate_windows, compute_metrics, save_results
 import xgboost as xgb
@@ -60,6 +60,19 @@ def main():
         models.append(model)
     print(f'  Training done!')
 
+    # Persist all 24 x 8 regressors so the playground can reproduce this run.
+    model_name = f'XGBoost_n{args.n_estimators}_d{args.max_depth}_lr{args.learning_rate}'
+    model_dir = os.path.join(args.output_dir, model_name)
+    os.makedirs(model_dir, exist_ok=True)
+    with open(os.path.join(model_dir, 'xgb_model.pkl'), 'wb') as f:
+        pickle.dump({
+            'models': models,
+            'seq_len': seq_len,
+            'pred_len': pred_len,
+            'num_channels': num_channels,
+            'feature_order': feature_cols,
+        }, f)
+
     # 预测
     print(f'  Predicting {len(X_windows)} windows...')
     preds_list = []
@@ -70,7 +83,6 @@ def main():
 
     # 计算指标
     metrics = compute_metrics(preds_list, trues_list, scaler, pred_len, num_channels)
-    model_name = f'XGBoost_n{args.n_estimators}_d{args.max_depth}_lr{args.learning_rate}'
     print(f'\n  {model_name}')
     print(f'  MSE={metrics["MSE"]:.4f}  MAE={metrics["MAE"]:.4f}  RMSE={metrics["RMSE"]:.4f}')
     print(f'  MAPE={metrics["MAPE"]:.4f}  Custom_ACC={metrics["Custom_ACC"]:.4f}')

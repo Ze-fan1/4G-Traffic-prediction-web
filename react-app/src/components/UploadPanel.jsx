@@ -1,6 +1,7 @@
 ﻿import { useState, useCallback, useRef, useEffect } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { getModelColor } from '../data/palette';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -13,7 +14,6 @@ function getFileExt(filename) {
   return dot >= 0 ? filename.slice(dot).toLowerCase() : '';
 }
 
-const PRED_COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6'];
 // 全局缓存：所有模型的预测叠加在同一张图上（切换卡片不丢失，上传新文件才清空）
 let globalPredHistory = [];
 
@@ -27,6 +27,10 @@ export default function UploadPanel({ selectedModel, modelInfo = {} }) {
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
+  // The model list arrives asynchronously. Do not treat its initial empty
+  // state as an unsupported model and disable the user's upload action.
+  const predictionCapabilityKnown = typeof modelInfo.custom_prediction === 'boolean';
+  const canPredict = !predictionCapabilityKnown || modelInfo.custom_prediction;
 
   // 保持 globalPredHistory 同步
   const updatePredHistory = useCallback((v) => {
@@ -158,11 +162,11 @@ export default function UploadPanel({ selectedModel, modelInfo = {} }) {
 
   const chartData = predHistory.length > 0 ? {
     labels: Array.from({ length: predHistory[0].predictions.length }, (_, i) => `${i + 1}h`),
-    datasets: predHistory.map((entry, i) => ({
+    datasets: predHistory.map((entry) => ({
       label: `${entry.model} (${targetCol})`,
       data: entry.predictions,
-      borderColor: PRED_COLORS[i % PRED_COLORS.length],
-      backgroundColor: PRED_COLORS[i % PRED_COLORS.length] + '18',
+      borderColor: getModelColor(entry.model),
+      backgroundColor: getModelColor(entry.model) + '18',
       borderWidth: 2.5,
       pointRadius: 1.5,
       tension: 0.35,
@@ -191,11 +195,15 @@ export default function UploadPanel({ selectedModel, modelInfo = {} }) {
   return (
     <div className="space-y-4">
       <div className="p-3 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] text-xs text-[#1E3A5F] leading-relaxed">
-        <b>Local model prediction</b>: using the selected model <b>{selectedModel}</b>.{' '}
-        {modelInfo.custom_prediction
+        <b>上传数据预测</b>：当前选择模型 <b>{selectedModel}</b>。{' '}
+        {!predictionCapabilityKnown
+          ? 'Checking local model availability...'
+          : modelInfo.custom_prediction
           ? (modelInfo.type === 'statistical'
-            ? 'Statistical models accept any one numeric target column.'
-            : 'This model requires the complete eight-column 4G feature contract. Missing channels are never fabricated.')
+            ? '可直接对任意单个数值列在本地拟合并预测。'
+            : modelInfo.type === 'huggingface'
+              ? '可直接使用目标列的完整历史；IBM TTM 最多读取最近 512 行，Chronos2 读取全部可用历史。'
+              : '可选择任意数值目标列。若没有完整 4G 八通道，系统会将目标序列逐通道送入本地模型并聚合对应输出，不再复制成八条相同输入。')
           : `This model cannot predict uploaded data: ${modelInfo.custom_prediction_reason || 'no reusable local weights.'}`}
       </div>
       {/* Upload area */}
@@ -298,7 +306,7 @@ export default function UploadPanel({ selectedModel, modelInfo = {} }) {
       {dataFile && (
         <button
           onClick={handlePredict}
-          disabled={isLoading || !targetCol || !modelInfo.custom_prediction}
+          disabled={isLoading || !targetCol || !canPredict}
           className="text-xs px-4 py-2 rounded-xl bg-[#3B82F6] text-white hover:bg-[#2563EB] disabled:opacity-50 transition-colors cursor-pointer font-medium"
         >
           {isLoading ? '⏳ 推理中...' : `🚀 使用 ${selectedModel} 预测`}
@@ -326,7 +334,7 @@ export default function UploadPanel({ selectedModel, modelInfo = {} }) {
               🗑️ 清空全部
             </button>
             <span className="text-[0.6rem] text-[#A1A1AA]">
-              已预测 {predHistory.length} 个通用方法 · 目标列: {targetCol} · Y轴: [{sharedYMin.toFixed(1)}, {sharedYMax.toFixed(1)}]
+              已预测 {predHistory.length} 个模型 · 目标列: {targetCol} · Y轴: [{sharedYMin.toFixed(1)}, {sharedYMax.toFixed(1)}]
             </span>
             {predHistory[0]?.meta && (
               <span className="text-[0.6rem] text-[#1D4ED8]">
@@ -336,9 +344,9 @@ export default function UploadPanel({ selectedModel, modelInfo = {} }) {
           </div>
           {/* 模型列表 — 点击 × 删除单个 */}
           <div className="flex flex-wrap gap-1.5">
-            {predHistory.map((e, i) => (
+            {predHistory.map((e) => (
               <span key={e.model} className="text-[0.6rem] px-2 py-0.5 rounded-full border inline-flex items-center gap-1 cursor-default"
-                style={{ borderColor: PRED_COLORS[i % PRED_COLORS.length], color: PRED_COLORS[i % PRED_COLORS.length] }}>
+                style={{ borderColor: getModelColor(e.model), color: getModelColor(e.model) }}>
                 {e.model}
                 <button onClick={() => updatePredHistory(prev => prev.filter(x => x.model !== e.model))}
                   className="ml-0.5 w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[0.55rem] hover:bg-black/10 cursor-pointer leading-none"
